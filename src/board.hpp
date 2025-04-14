@@ -90,17 +90,30 @@ enum Rank {
     RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB
 };
 
-
-void printBitboard(uint64_t bb) {
-  for (uint8_t y = 0; y < 8; y++) {
-    for (uint8_t x = 0; x < 8; x++) {
-      const uint8_t index = y * 8 + x;
-      Serial.print((int)bitRead(bb, index));
+#ifdef DEV
+  void printBitboard(uint64_t bb) {
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t x = 0; x < 8; x++) {
+        const uint8_t index = y * 8 + x;
+        printf("%d", (int)bitRead(bb, index));
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+#else
+  void printBitboard(uint64_t bb) {
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t x = 0; x < 8; x++) {
+        const uint8_t index = y * 8 + x;
+        Serial.print((int)bitRead(bb, index));
+      }
+      Serial.println("");
     }
     Serial.println("");
   }
-  Serial.println("");
-}
+#endif
+
 
 void moveSet(uint16_t &move, uint8_t from, uint8_t to, bool doublePawnPush, bool capture, bool enPassant, int promo, uint8_t castle) {
   move = (uint16_t)from;
@@ -216,7 +229,12 @@ class Board{
 
       for (int sq=0;sq<64;sq++){
         bool col = sqColor(sq);
-        psqt_value += (col == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[sqType(sq)][ col == WHITE ? sq^56 : sq ]));
+        #ifdef DEV
+          psqt_value += (col == WHITE ? 1 : -1) * (PSQT[sqType(sq)][ col == WHITE ? sq^56 : sq ]);
+        #else
+          psqt_value += (col == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[sqType(sq)][ col == WHITE ? sq^56 : sq ]));
+        #endif
+        
       }
     }
     // Get pieces of specific type and/or color
@@ -254,7 +272,13 @@ class Board{
       //printBitboard(bitboards[BLACK_BB]);
       this->material[type].C_[color]++;
       PHASE_VALUE += phaseValue[type];
-      psqt_value += (color == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type][ color == WHITE ? sq^56 : sq ]));
+      
+
+      #ifdef DEV
+        psqt_value += (color == WHITE ? 1 : -1) * (PSQT[type][ color == WHITE ? sq^56 : sq ]);
+      #else
+        psqt_value += (color == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type][ color == WHITE ? sq^56 : sq ]));
+      #endif
     }
     void addPiece(int sq, char t){
       int type = chrType(t);
@@ -265,7 +289,13 @@ class Board{
 
       this->material[type % 6].C_[type > 5]++;
       PHASE_VALUE += phaseValue[type % 6];
-      psqt_value += (sqColor(sq) == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type % 6][ sqColor(sq) == WHITE ? sq^56 : sq ]));
+      
+
+      #ifdef DEV
+        psqt_value += (sqColor(sq) == WHITE ? 1 : -1) * (PSQT[type % 6][ sqColor(sq) == WHITE ? sq^56 : sq ]);
+      #else
+        psqt_value += (sqColor(sq) == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type % 6][ sqColor(sq) == WHITE ? sq^56 : sq ]));
+      #endif
     }
     void removePiece(int sq){
       int type = sqType(sq);
@@ -275,10 +305,20 @@ class Board{
       this->material[type].C_[sqc]--;
 
       PHASE_VALUE -= phaseValue[type];
-      psqt_value -= (sqc == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type][ sqc == WHITE ? sq^56 : sq ]));
+      
+      #ifdef DEV
+        psqt_value -= (sqc == WHITE ? 1 : -1) * (PSQT[type][ sqc == WHITE ? sq^56 : sq ]);
+      #else
+        psqt_value -= (sqc == WHITE ? 1 : -1) * pgm_read_dword(&(PSQT[type][ sqc == WHITE ? sq^56 : sq ]));
+      #endif
     }
     // Sliced diced cooked fen parsing
     void parseFen(const char *fen){
+      for (int i=0;i<32;i++){
+        captureHistory[i] = -1;
+        moveHistory[i] = 0;
+        castleHistory[i] = ALL_CASTLE;
+      }
       for (int i=0;i<8;i++){
         bitboards[i] *= 0;
       }
@@ -315,13 +355,17 @@ class Board{
     }
 
     void uciPosition(char *str){
-      Board();
+      //Board();
       parseFen(BeginsWith(str, "position fen") ? str + 13 : START_FEN);
+
       if ((str = strstr(str, "moves")) == NULL) return;
       char *move = strtok(str, " ");
       while ((move = strtok(NULL, " "))) {
           // Parse and make move
           ply = 0;
+          castleHistory[0] = castleHistory[1];
+          moveHistory[0] = moveHistory[1];
+          captureHistory[0] = captureHistory[1];
           makeMove(parseMove(move));
       }
     }

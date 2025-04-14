@@ -32,9 +32,11 @@ void setLimit(const char *str, const char *token, int *limit) {
 }
 
 void go(Board &board, char *str){
-  int dep = 1;
-  setLimit(str, "depth", &dep);
-  search(board, dep);
+  int movetime = 0;
+  setLimit(str, "movetime",  &movetime);
+  if (movetime == 0)
+    setLimit(str, board.sideToMove == WHITE ? "wtime" : "btime", &movetime);
+  search(board, movetime);
 }
 
 void printUint16(uint16_t b){
@@ -52,12 +54,14 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Testing MemorixV2");
 
-  //board.parseFen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-  //printBoard(board);
-  // int startMicro = micros();
-  // search(board, 2);
-  // Serial.print("Time taken: ");
-  // Serial.println( (micros() - startMicro) / 1000000.0f);
+  Board board = Board();
+
+//   char str[] = "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves f3h5 g6h5 a2a4";
+
+//   board.uciPosition(str);
+//   printBoard(board);
+//   //printBitboard(rook_attack(56, 0));
+//   perft(board, 1);
   
 }
 

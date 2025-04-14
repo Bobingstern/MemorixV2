@@ -11,6 +11,10 @@
 #define getPromoStage(s) ((s & (0b1110000000)) >> 7)
 #define getCastleStage(s) ((s & (0b110000000000)) >> 10)
 
+int fileOf(int sq) { return sq & 7; }
+int rankOf(int sq) { return sq >> 3; }
+int relativeRank(bool color, int rank) { return color == WHITE ? rank : RANK_8 - rank; }
+
 template <typename T> bool sgn(T val) {
     return T(0) > val;
 }
@@ -27,60 +31,122 @@ uint16_t stagePack(bool isQuiet, uint16_t pieceType, uint16_t captureType, uint1
 }
 
 
-
-void printBoard(Board &board) {
-  for (uint8_t y = 0; y < 8; y++) {
-    for (uint8_t x = 0; x < 8; x++) {
-      const uint8_t index = y * 8 + x;
-      if (bitRead(board.pieces(PAWN, WHITE), index)) {
-        Serial.print("P");
-      } else if (bitRead(board.pieces(PAWN, BLACK), index)) {
-        Serial.print("p");
-      } else if (bitRead(board.pieces(KNIGHT, WHITE), index)) {
-        Serial.print("N");
-      } else if (bitRead(board.pieces(KNIGHT, BLACK), index)) {
-        Serial.print("n");
-      } else if (bitRead(board.pieces(BISHOP, WHITE), index)) {
-        Serial.print("B");
-      } else if (bitRead(board.pieces(BISHOP, BLACK), index)) {
-        Serial.print("b");
-      } else if (bitRead(board.pieces(ROOK, WHITE), index)) {
-        Serial.print("R");
-      } else if (bitRead(board.pieces(ROOK, BLACK), index)) {
-        Serial.print("r");
-      } else if (bitRead(board.pieces(QUEEN, WHITE), index)) {
-        Serial.print("Q");
-      } else if (bitRead(board.pieces(QUEEN, BLACK), index)) {
-        Serial.print("q");
-      } else if (bitRead(board.pieces(KING, WHITE), index)) {
-        Serial.print("K");
-      } else if (bitRead(board.pieces(KING, BLACK), index)) {
-        Serial.print("k");
-      } else {
-        Serial.print(".");
+#ifdef DEV
+  void printBoard(Board &board) {
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t x = 0; x < 8; x++) {
+        const uint8_t index = y * 8 + x;
+        if (bitRead(board.pieces(PAWN, WHITE), index)) {
+          printf("P");
+        } else if (bitRead(board.pieces(PAWN, BLACK), index)) {
+          printf("p");
+        } else if (bitRead(board.pieces(KNIGHT, WHITE), index)) {
+          printf("N");
+        } else if (bitRead(board.pieces(KNIGHT, BLACK), index)) {
+          printf("n");
+        } else if (bitRead(board.pieces(BISHOP, WHITE), index)) {
+          printf("B");
+        } else if (bitRead(board.pieces(BISHOP, BLACK), index)) {
+          printf("b");
+        } else if (bitRead(board.pieces(ROOK, WHITE), index)) {
+          printf("R");
+        } else if (bitRead(board.pieces(ROOK, BLACK), index)) {
+          printf("r");
+        } else if (bitRead(board.pieces(QUEEN, WHITE), index)) {
+          printf("Q");
+        } else if (bitRead(board.pieces(QUEEN, BLACK), index)) {
+          printf("q");
+        } else if (bitRead(board.pieces(KING, WHITE), index)) {
+          printf("K");
+        } else if (bitRead(board.pieces(KING, BLACK), index)) {
+          printf("k");
+        } else {
+          printf(".");
+        }
+        printf(" ");
       }
-      Serial.print(" ");
+      printf("\n");
+    }
+    printf("\n");
+  }
+
+#else
+  void printBoard(Board &board) {
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t x = 0; x < 8; x++) {
+        const uint8_t index = y * 8 + x;
+        if (bitRead(board.pieces(PAWN, WHITE), index)) {
+          Serial.print("P");
+        } else if (bitRead(board.pieces(PAWN, BLACK), index)) {
+          Serial.print("p");
+        } else if (bitRead(board.pieces(KNIGHT, WHITE), index)) {
+          Serial.print("N");
+        } else if (bitRead(board.pieces(KNIGHT, BLACK), index)) {
+          Serial.print("n");
+        } else if (bitRead(board.pieces(BISHOP, WHITE), index)) {
+          Serial.print("B");
+        } else if (bitRead(board.pieces(BISHOP, BLACK), index)) {
+          Serial.print("b");
+        } else if (bitRead(board.pieces(ROOK, WHITE), index)) {
+          Serial.print("R");
+        } else if (bitRead(board.pieces(ROOK, BLACK), index)) {
+          Serial.print("r");
+        } else if (bitRead(board.pieces(QUEEN, WHITE), index)) {
+          Serial.print("Q");
+        } else if (bitRead(board.pieces(QUEEN, BLACK), index)) {
+          Serial.print("q");
+        } else if (bitRead(board.pieces(KING, WHITE), index)) {
+          Serial.print("K");
+        } else if (bitRead(board.pieces(KING, BLACK), index)) {
+          Serial.print("k");
+        } else {
+          Serial.print(".");
+        }
+        Serial.print(" ");
+      }
+      Serial.print("\n");
     }
     Serial.print("\n");
   }
-  Serial.print("\n");
-}
+#endif
 
-void printType(int t){
-  switch (t){
-    case PAWN: Serial.print("Pawn "); break;
-    case KNIGHT: Serial.print("Knight "); break;
-    case BISHOP: Serial.print("Bishop "); break;
-    case ROOK: Serial.print("Rook "); break;
-    case QUEEN: Serial.print("Queen "); break;
-    case KING: Serial.print("King "); break;
+
+
+#ifdef DEV
+  void printType(int t){
+    switch (t){
+      case PAWN: printf("Pawn "); break;
+      case KNIGHT: printf("Knight "); break;
+      case BISHOP: printf("Bishop "); break;
+      case ROOK: printf("Rook "); break;
+      case QUEEN: printf("Queen "); break;
+      case KING: printf("King "); break;
+    }
   }
-}
-void printMaterial(Board &b){
-  for (int i=PAWN;i<KING;i++){
-    printType(i); Serial.print("White: "); Serial.print(b.material[i].C_[WHITE]); Serial.print(" Black: "); Serial.println(b.material[i].C_[BLACK]);
+  void printMaterial(Board &b){
+    for (int i=PAWN;i<KING;i++){
+      printType(i); printf("White: "); printf("%d ", b.material[i].C_[WHITE]); printf(" Black: "); printf("%d\n", b.material[i].C_[BLACK]);
+    }
   }
-}
+#else
+  void printType(int t){
+    switch (t){
+      case PAWN: Serial.print("Pawn "); break;
+      case KNIGHT: Serial.print("Knight "); break;
+      case BISHOP: Serial.print("Bishop "); break;
+      case ROOK: Serial.print("Rook "); break;
+      case QUEEN: Serial.print("Queen "); break;
+      case KING: Serial.print("King "); break;
+    }
+  }
+  void printMaterial(Board &b){
+    for (int i=PAWN;i<KING;i++){
+      printType(i); Serial.print("White: "); Serial.print(b.material[i].C_[WHITE]); Serial.print(" Black: "); Serial.println(b.material[i].C_[BLACK]);
+    }
+  }
+
+#endif
+
 
 class StagedMoveHandler{
   public:
@@ -309,7 +375,7 @@ class StagedMoveHandler{
         int me = ntz(x);
         int to = getTo(board->moveHistory[board->ply]);
         
-        if (getFlag(board->moveHistory[board->ply]) == DOUBLE_PAWN_PUSH && (abs(me - to) == 1) && getCaptureStage(stage) == PAWN){
+        if (getFlag(board->moveHistory[board->ply]) == DOUBLE_PAWN_PUSH && rankOf(me) == rankOf(to) && (abs(me - to) == 1) && getCaptureStage(stage) == PAWN){
             bb |= shift(BB(to), up) & ~board->occ();
             // printBoard(*board);
             // printBitboard(bb);

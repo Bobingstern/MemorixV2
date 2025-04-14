@@ -2,10 +2,11 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "staged.hpp"
 #include "eval.hpp"
 
-#define MAX_DEPTH 5
+#define MAX_DEPTH 8
 
 typedef struct PV {
     int length;
@@ -15,7 +16,37 @@ typedef struct PV {
 struct History {
   int eval[MAX_DEPTH+5] = {0};
   int ply = 0;
+  #ifdef DEV
+    clock_t TIME_STARTED;
+  #else
+    int32_t TIME_STARTED;
+  #endif
+
+  int32_t MAX_TIME = 1000;
+  bool aborted = false;
 };
+
+
+#ifdef DEV
+  clock_t Now() {
+    return clock();
+  }
+
+  int32_t TimeSince(clock_t tp) {
+    return (int32_t)clock()-(int32_t)tp;
+  }
+#else
+  int32_t Now(){
+    return millis();
+  }
+  int32_t TimeSince(int32_t tp){
+    return (int32_t)millis() - tp;
+  }
+#endif
+
+bool maxTime(History *history){
+  return TimeSince(history->TIME_STARTED) >= history->MAX_TIME - 50;
+}
 
 
 int32_t perft_(Board &b, int og, int depth){
@@ -42,9 +73,16 @@ int32_t perft_(Board &b, int og, int depth){
     int32_t gend = perft_(b, og, depth-1);
     nodes += gend;
     if (depth == og){
-      Serial.print(b.moveToStr(move));
-      Serial.print("- ");
-      Serial.println(gend);
+      #ifdef DEV
+        printf(b.moveToStr(move));
+        printf("- ");
+        printf("%d\n", gend);
+      #else
+        Serial.print(b.moveToStr(move));
+        Serial.print("- ");
+        Serial.println(gend);
+      #endif
+      
     }
     b.unmakeMove();
     move = stgm.nextMove();
@@ -54,16 +92,25 @@ int32_t perft_(Board &b, int og, int depth){
 
 void perft(Board &b, int depth){
   int total = perft_(b, depth, depth);
-  Serial.print("Total ");
-  Serial.println(total);
+  #ifdef DEV
+    printf("Total ");
+    printf("%d\n", total);
+  #else
+    Serial.print("Total ");
+    Serial.println(total);
+  #endif
+  
 }
 
-int qsearch(Board &board, int alpha, const int beta, int32_t &node){
+
+
+int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &node){
 
   int score = evaluate(board, board.sideToMove);
   int futility = -INFINITE;
+  history->aborted = maxTime(history);
   
-  if (board.ply >= MAX_DEPTH){
+  if (history->ply >= MAX_DEPTH || history->aborted){
     return score;
   }
   if (score >= beta)
@@ -89,17 +136,18 @@ int qsearch(Board &board, int alpha, const int beta, int32_t &node){
       continue;
     }
     node++;
-    int ptv = EgScore((int32_t)pgm_read_dword(pieceTypeValues + board.sqType(getTo(move))));
+    // int ptv = EgScore((int32_t)pgm_read_dword(pieceTypeValues + board.sqType(getTo(move))));
     
-    if (futility + ptv <= alpha && getFlag(move) < 8){
-          // Serial.println(board.sqType(getTo(move)));
-          board.unmakeMove();
-          move = stgm.nextMove();
-          bestScore = max(bestScore, futility + ptv);
-          continue;
-      }
-    
-    score = -qsearch(board, -beta, -alpha, node);
+    // if (futility + ptv <= alpha && getFlag(move) < 8){
+    //   // Serial.println(board.sqType(getTo(move)));
+    //   board.unmakeMove();
+    //   move = stgm.nextMove();
+    //   bestScore = max(bestScore, futility + ptv);
+    //   continue;
+    // }
+    history->ply++;
+    score = -qsearch(board, -beta, -alpha, history, node);
+    history->ply--;
     board.unmakeMove();
     if (score > bestScore){
       bestScore = score;
@@ -115,7 +163,7 @@ int qsearch(Board &board, int alpha, const int beta, int32_t &node){
   return bestScore;
 }
 
-int alphabeta(Board &board, int alpha, int beta, int depth, uint16_t &bm, PV *pv, History *history, int32_t &node){
+int alphabeta(Board &board, int alpha, int beta, int depth, PV *pv, History *history, int32_t &node){
  
 
   int bestScore = -INFINITE;
@@ -124,39 +172,37 @@ int alphabeta(Board &board, int alpha, int beta, int depth, uint16_t &bm, PV *pv
   bool pvNode = alpha != beta - 1;
   PV pvFromHere;
   pv->length = 0;
+  history->aborted = maxTime(history);
 
-  if (depth <= 0){
-    return qsearch(board, alpha, beta, node);
+  if (depth <= 0 || history->aborted){
+    return qsearch(board, alpha, beta, history, node);
   }
   
   StagedMoveHandler stgm = StagedMoveHandler(&board, board.sideToMove);
   bool inCheck = stgm.inCheck();
-  
+  int eval;
 
   if (inCheck || pvNode){
     goto move_loop;
   }
   // Pruning stuff ig
-  int eval = evaluate(board, board.sideToMove);
+  eval = evaluate(board, board.sideToMove);
   history->eval[history->ply] = eval;
 
-  bool improving = !inCheck && history->ply >= 2 && eval > history->eval[history->ply-2];\
+  //bool improving = !inCheck && history->ply >= 2 && eval > history->eval[history->ply-2];
   // RFP
-  if (history->ply < 7 &&
-      eval - 175 * history->ply / (1+improving) >= beta &&
-      abs(beta) < 29001)
-      return eval;
+  // if (history->ply < 7 &&
+  //     eval - 175 * history->ply / (1+improving) >= beta &&
+  //     abs(beta) < 29001)
+  //     return eval;
   // ----
 
 move_loop:
   uint16_t move = stgm.nextMove();
-  uint16_t bestMove = move;
   
   int moveCount = 0;
   bool root = history->ply == 0;
   while (move != 0){
-    // if (root)
-    //   Serial.print("Searching ");
     board.makeMove(move);
     if (stgm.inCheck()){
       board.unmakeMove();
@@ -166,32 +212,26 @@ move_loop:
     moveCount++;
     node++;
     history->ply++;
+    if (root){
+      //printf("%s\n", board.moveToStr(move));
+      //printBoard(board);
+    }
     if (!pvNode || moveCount > 1)
-      score = -alphabeta(board, -alpha-1, -alpha, depth-1, bm, &pvFromHere, history, node);
+      score = -alphabeta(board, -alpha-1, -alpha, depth-1, &pvFromHere, history, node);
 
     if (pvNode && (score > alpha || moveCount == 1))
-      score = -alphabeta(board, -beta, -alpha, depth-1, bm, &pvFromHere, history, node);
+      score = -alphabeta(board, -beta, -alpha, depth-1, &pvFromHere, history, node);
     history->ply--;
     board.unmakeMove();
 
-    if (root){
-      //Serial.print(board.moveToStr(move));
-      Serial.print("Nodes Searched: ");
-      Serial.println(node);
-    }
     if (score > bestScore){
       bestScore = score;
-      bestMove = move;
-
       if ((score > alpha && pvNode) || (root && moveCount == 1)){
         // Update PV
         pv->length = 1 + pvFromHere.length;
         pv->line[0] = move;
         memcpy(pv->line + 1, pvFromHere.line, sizeof(uint16_t) * pvFromHere.length);
       }
-
-      if (root)
-        bm = move;
       if (score > alpha){
         alpha = score;
         if (score >= beta){
@@ -210,19 +250,48 @@ move_loop:
   return bestScore;
 }
 
-uint16_t search(Board &b, int depth){
-  uint16_t best = 0;
-  PV pv;
-  History hist;
+uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
+  #ifdef DEV
+    clock_t start = Now();
+  #else
+    int32_t start = Now();
+  #endif
   int32_t nodes = 0;
-  int score = alphabeta(b, -INFINITE, INFINITE, depth, best, &pv, &hist, nodes);
-  Serial.print("PV Line: ");
-  for (int i=0;i<pv.length;i++){
-    Serial.print(b.moveToStr(pv.line[i]));
+  uint16_t best = 0;
+  for (int depth=1;depth<MAX_DEPTH;depth++){
+    PV pv;
+    History hist;
+    hist.TIME_STARTED = start;
+    hist.MAX_TIME = timeAllowed;
+    
+    int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
+    if (hist.aborted)
+      break;
+    printf(b.moveToStr(pv.line[0]));
+    printf(" Score: %d\n", score);
+    best = pv.line[0];
   }
-  Serial.println();
-  Serial.print("Evaluation: ");
-  Serial.println(score);
-  //Serial.println(b.moveToStr(best));
   return best;
+}
+
+uint16_t search(Board &b, int32_t timeAllowed){
+
+  //int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
+  uint16_t bestMove = iterativeDeep(b, timeAllowed);
+  
+  #ifdef DEV
+    printf("bestmove ");
+    printf(b.moveToStr(bestMove));
+    printf("\n");
+  #else
+    Serial.println(b.moveToStr(bestMove));
+  #endif
+  
+
+  
+  //Serial.println();
+  //Serial.print("Evaluation: ");
+  //Serial.println(score);
+  //Serial.println(b.moveToStr(best));
+  return bestMove;
 }

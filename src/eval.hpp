@@ -17,12 +17,13 @@ enum PieceValue {
     Q_MG = 1485, Q_EG = 1963
 };
 
-const int32_t pieceTypeValues[5] PROGMEM = {S(P_MG, P_EG), S(N_MG, N_EG), S(B_MG, B_EG), S(R_MG, R_EG), S(Q_MG, Q_EG)};
+#ifdef DEV
+  const int32_t pieceTypeValues[6] = {S(P_MG, P_EG), S(N_MG, N_EG), S(B_MG, B_EG), S(R_MG, R_EG), S(Q_MG, Q_EG), 0};
+#else
+  const int32_t pieceTypeValues[5] PROGMEM = {S(P_MG, P_EG), S(N_MG, N_EG), S(B_MG, B_EG), S(R_MG, R_EG), S(Q_MG, Q_EG)};
+#endif
 
 
-int fileOf(int sq) { return sq & 7; }
-int rankOf(int sq) { return sq >> 3; }
-int relativeRank(bool color, int rank) { return color == WHITE ? rank : RANK_8 - rank; }
 
 int getPhase(int value){
   return (value * 256 + 12) / 24;
@@ -31,11 +32,16 @@ int getPhase(int value){
 int32_t evalMaterial(Board &board){
   int32_t mat = 0;
   for (int i=PAWN;i<KING;i++){
-    mat += (int32_t)pgm_read_dword(pieceTypeValues+i) * board.material[i].C_[WHITE];
-    mat -= (int32_t)pgm_read_dword(pieceTypeValues+i) * board.material[i].C_[BLACK];
+    #ifdef DEV
+      mat += (int32_t)pieceTypeValues[i] * board.material[i].C_[WHITE];
+      mat -= (int32_t)pieceTypeValues[i] * board.material[i].C_[BLACK];
+    #else
+      mat += (int32_t)pgm_read_dword(pieceTypeValues+i) * board.material[i].C_[WHITE];
+      mat -= (int32_t)pgm_read_dword(pieceTypeValues+i) * board.material[i].C_[BLACK];
+    #endif
+    
     
   }
-  
   return mat;
 }
 int evaluate(Board &board, bool color){
