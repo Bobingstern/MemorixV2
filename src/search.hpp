@@ -8,14 +8,17 @@
 
 #define MAX_DEPTH 8
 
-typedef struct PV {
-    int length;
-    uint16_t line[MAX_DEPTH+5] = {0};
-} PV;
+struct PV {
+    int length = 0;
+    uint16_t line[MAX_DEPTH+3] = {};
+};
 
 struct History {
-  int eval[MAX_DEPTH+5] = {0};
+  int eval[MAX_DEPTH+3] = {0};
   int ply = 0;
+  int maxDepthPVS = 1;
+  int maxDepthQS = 8;
+  uint16_t lastPV[MAX_DEPTH+3] = {0};
   #ifdef DEV
     clock_t TIME_STARTED;
   #else
@@ -103,14 +106,13 @@ void perft(Board &b, int depth){
 }
 
 
-
 int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &node){
 
   int score = evaluate(board, board.sideToMove);
   int futility = -INFINITE;
   history->aborted = maxTime(history);
   
-  if (history->ply >= MAX_DEPTH || history->aborted){
+  if (history->ply >= history->maxDepthQS || history->aborted){
     return score;
   }
   if (score >= beta)
@@ -163,18 +165,20 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
   return bestScore;
 }
 
-int alphabeta(Board &board, int alpha, int beta, int depth, PV *pv, History *history, int32_t &node){
+int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32_t &node){
  
 
   int bestScore = -INFINITE;
   int score = -INFINITE;
 
   bool pvNode = alpha != beta - 1;
+  bool root = history->ply == 0;
   PV pvFromHere;
   pv->length = 0;
+
   history->aborted = maxTime(history);
 
-  if (depth <= 0 || history->aborted){
+  if (history->ply >= history->maxDepthPVS || history->aborted){
     return qsearch(board, alpha, beta, history, node);
   }
   
@@ -189,22 +193,26 @@ int alphabeta(Board &board, int alpha, int beta, int depth, PV *pv, History *his
   eval = evaluate(board, board.sideToMove);
   history->eval[history->ply] = eval;
 
-  //bool improving = !inCheck && history->ply >= 2 && eval > history->eval[history->ply-2];
-  // RFP
-  // if (history->ply < 7 &&
-  //     eval - 175 * history->ply / (1+improving) >= beta &&
-  //     abs(beta) < 29001)
-  //     return eval;
-  // ----
+  /*
+  bool improving = !inCheck && history->ply >= 2 && eval > history->eval[history->ply-2];
+  RFP
+  if (history->ply < 7 &&
+      eval - 175 * history->ply / (1+improving) >= beta &&
+      abs(beta) < 29001)
+      return eval;
+  ----
+  */
 
 move_loop:
-  uint16_t move = stgm.nextMove();
+  uint16_t move = history->lastPV[history->ply];
+  if (move == 0)
+    move = stgm.nextMove();
   
   int moveCount = 0;
-  bool root = history->ply == 0;
+  
   while (move != 0){
     board.makeMove(move);
-    if (stgm.inCheck()){
+    if (stgm.inCheck() || move == history->lastPV[history->ply]){
       board.unmakeMove();
       move = stgm.nextMove();
       continue;
@@ -213,14 +221,12 @@ move_loop:
     node++;
     history->ply++;
     if (root){
-      //printf("%s\n", board.moveToStr(move));
-      //printBoard(board);
+      //printf("%d\n", pv->length);
     }
     if (!pvNode || moveCount > 1)
-      score = -alphabeta(board, -alpha-1, -alpha, depth-1, &pvFromHere, history, node);
-
+      score = -alphabeta(board, -alpha-1, -alpha, &pvFromHere, history, node);
     if (pvNode && (score > alpha || moveCount == 1))
-      score = -alphabeta(board, -beta, -alpha, depth-1, &pvFromHere, history, node);
+      score = -alphabeta(board, -beta, -alpha, &pvFromHere, history, node);
     history->ply--;
     board.unmakeMove();
 
@@ -258,18 +264,30 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
   #endif
   int32_t nodes = 0;
   uint16_t best = 0;
+  History hist;
   for (int depth=1;depth<MAX_DEPTH;depth++){
     PV pv;
-    History hist;
     hist.TIME_STARTED = start;
     hist.MAX_TIME = timeAllowed;
+    hist.maxDepthPVS = depth;
+    hist.aborted = false;
+    memset(hist.lastPV, 0, sizeof(hist.lastPV));
     
-    int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
-    if (hist.aborted)
+    int score = alphabeta(b, -INFINITE, INFINITE, &pv, &hist, nodes);
+    if (best == 0)
+        best = pv.line[0]; // Such low time we couldn't even finish a single search, just take a random move
+    if (hist.aborted){
       break;
-    printf(b.moveToStr(pv.line[0]));
-    printf(" Score: %d\n", score);
+    }
     best = pv.line[0];
+    memcpy(hist.lastPV, pv.line, sizeof(pv.line));
+    printf("info pv ");
+    for (int i=0;i<pv.length;i++)
+      printf("%s ", b.moveToStr(hist.lastPV[i]));
+    //printf("%s\n", b.moveToStr(best));
+    printf("cp %d nodes %d\n", score, nodes);
+    fflush(stdout);
+    
   }
   return best;
 }
