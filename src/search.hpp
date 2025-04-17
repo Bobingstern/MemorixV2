@@ -31,6 +31,7 @@ struct History {
 
 
 #ifdef DEV
+  #define max(a, b) ((a) > (b) ? (a) : (b))
   clock_t Now() {
     return clock();
   }
@@ -94,10 +95,15 @@ int32_t perft_(Board &b, int og, int depth){
 }
 
 void perft(Board &b, int depth){
+  #ifdef DEV
+    clock_t rightNow;
+  #else
+    int32_t rightNow;
+  #endif
+  rightNow = Now();
   int total = perft_(b, depth, depth);
   #ifdef DEV
-    printf("Total ");
-    printf("%d\n", total);
+    printf("Took %d ms, %d nodes, %f nps\n", TimeSince(rightNow), total, (float)total/TimeSince(rightNow)*1000.0f);
   #else
     Serial.print("Total ");
     Serial.println(total);
@@ -138,15 +144,6 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
       continue;
     }
     node++;
-    // int ptv = EgScore((int32_t)pgm_read_dword(pieceTypeValues + board.sqType(getTo(move))));
-    
-    // if (futility + ptv <= alpha && getFlag(move) < 8){
-    //   // Serial.println(board.sqType(getTo(move)));
-    //   board.unmakeMove();
-    //   move = stgm.nextMove();
-    //   bestScore = max(bestScore, futility + ptv);
-    //   continue;
-    // }
     history->ply++;
     score = -qsearch(board, -beta, -alpha, history, node);
     history->ply--;
@@ -285,7 +282,7 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
     for (int i=0;i<pv.length;i++)
       printf("%s ", b.moveToStr(hist.lastPV[i]));
     //printf("%s\n", b.moveToStr(best));
-    printf("cp %d nodes %d\n", score, nodes);
+    printf("\ninfo cp %d \ninfo nodes %d\n", score, nodes);
     fflush(stdout);
     
   }

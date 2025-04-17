@@ -7,6 +7,8 @@
 #include <chrono>
 #include <stddef.h>
 #include <stdlib.h>
+#include <math.h>
+#include <cmath>
 #include "src/engine.hpp"
 
 #define INPUT_SIZE 8192
@@ -47,16 +49,26 @@ static int hashInput(char *str) {
   return hash;
 }
 void setLimit(const char *str, const char *token, int *limit) {
-    char *ptr = NULL;
-    if ((ptr = strstr(str, token)))
-        *limit = atoi(ptr + strlen(token));
+  char *ptr = NULL;
+  if ((ptr = strstr(str, token)))
+      *limit = atoi(ptr + strlen(token));
+}
+
+void runPerft(Board &board, char *str){
+  strtok(str, " ");
+  char *d = strtok(NULL, " ");
+  int depth = d ? atoi(d) : 5;
+  perft(board, depth);
+  fflush(stdout);
 }
 
 void go(Board &board, char *str){
   int movetime = 0;
   setLimit(str, "movetime",  &movetime);
-  if (movetime == 0)
+  if (movetime == 0){
     setLimit(str, board.sideToMove == WHITE ? "wtime" : "btime", &movetime);
+    movetime /= 20;
+  }
   search(board, movetime);
 }
 
@@ -88,9 +100,9 @@ int main() {
       case UCI        : printf("id name MemorixV2\nid author Anik Patel\nuciok\n");fflush(stdout);         break;
       case ISREADY    : printf("readyok\n");fflush(stdout);      break;
       case POSITION   : board.uciPosition(str);printBoard(board); break;
-      //case SETOPTION  : SetOption(str); break;
+      case EVAL  : printf("%d\n", evaluate(board, board.sideToMove)); break;
       case UCINEWGAME : board = Board();      break;
-      //case STOP       : Stop();         break;
+      case PERFT       : runPerft(board, str);         break;
       case QUIT       : return 0;
     }
   }
