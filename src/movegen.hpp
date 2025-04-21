@@ -173,5 +173,12 @@ uint64_t king_attack(int sq){
         | shift(shift(x, SOUTH), WEST) | shift(shift(x, SOUTH), EAST));
 }
 
-// This will read the right most move from a piece and it's possible attacks
+// Pawn attacks
+
+uint64_t pawn_attacks(uint64_t bb, bool color){
+    uint64_t out = color == 0 ? bb << 9 : bb >> 7; //Left
+    out &= ~fileHBB; // If we attack left, the right file should not be touched. this removes overflowing into the next "pacman" file
+    out |= (color == 0 ? bb << 7 : bb >> 9) & ~fileABB;
+    return out;
+}
 

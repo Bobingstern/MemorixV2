@@ -260,6 +260,7 @@ class Board{
         if ( (this->bitboards[i] & bb) != 0)
           return i;
       }
+      return -1;
     }
     uint64_t occ(){
       return bitboards[WHITE_BB] | bitboards[BLACK_BB];
@@ -352,6 +353,8 @@ class Board{
       castleHistory[ply] = castleRights;
       captureHistory[ply] = -1;
       moveHistory[ply] = 0;
+
+      free(copy);
     }
 
     void uciPosition(char *str){

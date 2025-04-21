@@ -1,6 +1,6 @@
 #define DEV
-
 #ifdef DEV
+//#define TUNE
 
 #include <time.h>
 #include <ctime>
@@ -9,89 +9,29 @@
 #include <stdlib.h>
 #include <math.h>
 #include <cmath>
+#include <array>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+#include <random>
 #include "src/engine.hpp"
 
-#define INPUT_SIZE 8192
-
-enum InputCommands {
-    // UCI
-    GO          = 11,
-    UCI         = 127,
-    STOP        = 28,
-    QUIT        = 29,
-    ISREADY     = 113,
-    POSITION    = 17,
-    SETOPTION   = 96,
-    UCINEWGAME  = 6,
-    // Non-UCI
-    EVAL        = 26,
-    PRINT       = 112,
-    PERFT       = 116
-};
-
-bool getInput(char *str) {
-
-    memset(str, 0, INPUT_SIZE);
-
-    if (fgets(str, INPUT_SIZE, stdin) == NULL)
-        return false;
-
-    str[strcspn(str, "\r\n")] = '\0';
-
-    return true;
-}
-
-static int hashInput(char *str) {
-  int hash = 0;
-  int len = 1;
-  while (*str && *str != ' ')
-    hash ^= *(str++) ^ len++;
-  return hash;
-}
-void setLimit(const char *str, const char *token, int *limit) {
-  char *ptr = NULL;
-  if ((ptr = strstr(str, token)))
-      *limit = atoi(ptr + strlen(token));
-}
-
-void runPerft(Board &board, char *str){
-  strtok(str, " ");
-  char *d = strtok(NULL, " ");
-  int depth = d ? atoi(d) : 5;
-  perft(board, depth);
-  fflush(stdout);
-}
-
-void go(Board &board, char *str){
-  int movetime = 0;
-  setLimit(str, "movetime",  &movetime);
-  if (movetime == 0){
-    setLimit(str, board.sideToMove == WHITE ? "wtime" : "btime", &movetime);
-    movetime /= 20;
-  }
-  search(board, movetime);
-}
-
-// void printUint16(uint16_t b){
-//   for (int i=15;i>=0;i--){
-//     Serial.print((int)( (b >> i) & 0x01  ));
-//   }
-//   Serial.println("");
-// }
-
-
-
+#ifdef TUNE
+#include "src/tuner.hpp"
+#endif
 
 int main() {
 
   Board board = Board();
 
-  char st[] = "position startpos moves f2f4 f7f5 e1f2 e8f7";
-
-  //board.uciPosition(st);
-  //perft(board, 5);
-  // printBoard(board);
-  //search(board, 1000);
+  #ifdef TUNE
+  // 0.084306
+  intialize_tuner();
+  load_data();
+  computeOptimalK();
+  tune();
+  #endif
   
   char str[INPUT_SIZE];
   while (getInput(str)) {

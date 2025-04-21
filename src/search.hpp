@@ -17,7 +17,7 @@ struct History {
   int eval[MAX_DEPTH+3] = {0};
   int ply = 0;
   int maxDepthPVS = 1;
-  int maxDepthQS = 8;
+  int maxDepthQS = 4;
   uint16_t lastPV[MAX_DEPTH+3] = {0};
   #ifdef DEV
     clock_t TIME_STARTED;
@@ -278,12 +278,26 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
     }
     best = pv.line[0];
     memcpy(hist.lastPV, pv.line, sizeof(pv.line));
+
+    #ifdef DEV
     printf("info pv ");
     for (int i=0;i<pv.length;i++)
       printf("%s ", b.moveToStr(hist.lastPV[i]));
     //printf("%s\n", b.moveToStr(best));
     printf("\ninfo cp %d \ninfo nodes %d\n", score, nodes);
     fflush(stdout);
+    #else
+    Serial.print("info pv ");
+    for (int i=0;i<pv.length;i++){
+      Serial.print(b.moveToStr(hist.lastPV[i]));
+      Serial.print(" ");
+    }
+    //printf("%s\n", b.moveToStr(best));
+    Serial.print("\ninfo cp ");
+    Serial.println(score);
+    Serial.print("info nodes ");
+    Serial.println(nodes);
+    #endif
     
   }
   return best;
@@ -299,6 +313,7 @@ uint16_t search(Board &b, int32_t timeAllowed){
     printf(b.moveToStr(bestMove));
     printf("\n");
   #else
+    Serial.print("bestmove ");
     Serial.println(b.moveToStr(bestMove));
   #endif
   

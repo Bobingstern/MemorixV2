@@ -186,6 +186,7 @@ class StagedMoveHandler{
         case KING:
           return king_attack(x) & toAnd;
       }
+      return -1;
     }
     void setAttackBB(int from, bool isQuiet, int type){
       movementBB = generateType(from, isQuiet, type);

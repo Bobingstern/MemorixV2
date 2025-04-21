@@ -1,0 +1,36 @@
+# Ignore build directory
+build/
+data/
+
+*.epd
+*.pgn
+*.book
+
+# Ignore CMake-generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Ninja build files
+build.ninja
+.ninja_deps
+.ninja_log
+
+# Windows clutter
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.sln
+*.vcxproj*
+*.user
+*.log
+
+# macOS clutter
+.DS_Store
+
+# Other IDE files
+.vscode/
+.idea/
