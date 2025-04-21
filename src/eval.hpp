@@ -39,16 +39,8 @@ Trace EvalTrace = {};
   const int32_t kingLineDanger[28] =  {S(0, 0), S(0, 0), S(72, -27), S(36, 26), S(18, 49), S(-1, 42), S(-3, 40), S(-14, 45), S(-28, 53), S(-50, 49), S(-39, 43), S(-71, 52), S(-75, 53), S(-118, 63), S(-131, 61), S(-155, 57), S(-148, 49), S(-152, 41), S(-128, 29), S(-130, 23), S(-136, 19), S(-176, 9), S(-163, 0), S(-202, -17), S(-212, -23), S(-159, -46), S(-130, -32), S(-135, -34), };
   const int32_t mobilities[5] = {S(10, 2), S(10, 5), S(8, 4), S(5, 1), S(-5, -1), };
 #else
-  const int32_t pieceTypeValues[5] PROGMEM = {S(P_MG, P_EG), S(N_MG, N_EG), S(B_MG, B_EG), S(R_MG, R_EG), S(Q_MG, Q_EG)};
-  const int32_t kingLineDanger[28] PROGMEM = {
-    S(  0,  0), S(  0,  0), S( 15,  0), S( 11, 21),
-    S(-16, 35), S(-25, 30), S(-29, 29), S(-37, 38),
-    S(-48, 41), S(-67, 43), S(-67, 40), S(-80, 43),
-    S(-85, 43), S(-97, 44), S(-109, 46), S(-106, 41),
-    S(-116, 41), S(-123, 37), S(-126, 34), S(-131, 29),
-    S(-138, 28), S(-155, 26), S(-149, 23), S(-172,  9),
-    S(-148, -8), S(-134,-26), S(-130,-32), S(-135,-34)
-  };
+  const int32_t pieceTypeValues[6] PROGMEM = {S(124, 202), S(560, 363), S(567, 410), S(802, 714), S(1588, 1401), S(0, 0), };
+  const int32_t kingLineDanger[28] PROGMEM =  {S(0, 0), S(0, 0), S(72, -27), S(36, 26), S(18, 49), S(-1, 42), S(-3, 40), S(-14, 45), S(-28, 53), S(-50, 49), S(-39, 43), S(-71, 52), S(-75, 53), S(-118, 63), S(-131, 61), S(-155, 57), S(-148, 49), S(-152, 41), S(-128, 29), S(-130, 23), S(-136, 19), S(-176, 9), S(-163, 0), S(-202, -17), S(-212, -23), S(-159, -46), S(-130, -32), S(-135, -34), };
 #endif
 
 
@@ -121,34 +113,6 @@ int32_t evalKingSaftey(Board &board, bool color){
   return eval;
 }
 int32_t evalMobility(Board &board, int type, bool color){
-  int32_t eval = 0;
-  uint64_t pieceBB = board.pieces(type, color);
-  
-  while (pieceBB != 0){
-    uint64_t iso = rightBit(pieceBB);
-    uint64_t mob = 0;
-
-    if (type > BISHOP)
-      mob = rook_attack(ntz(iso), board.occ());
-    if (type == KNIGHT)
-      mob = knight_attack(ntz(iso));
-    else if (type != ROOK)
-      mob |= bishop_attack(ntz(iso), board.occ());
-
-    // printBitboard(iso);
-    //printBitboard(mob);
-    //printBitboard(mob & ~board.pieces(color) & ~pawn_attacks(board.pieces(PAWN, !color), !color));
-    //printf("%d\n", popcount(mob & ~board.pieces(color) & ~pawn_attacks(board.pieces(PAWN, !color), !color)));
-    int cnt = popcount(mob & ~board.pieces(color) & ~pawn_attacks(board.pieces(PAWN, !color), !color));
-    eval += mobilities[type-1] * cnt;
-    pieceBB &= ~iso;
-    #ifdef TUNE
-      EvalTrace.mobilities[type-1][color] += cnt;
-    #endif
-  }
-  //printBitboard(occ);
-  //printf("%d %d\n", MgScore(eval), EgScore(eval));
-  return eval;
 }
 int evaluate(Board &board, bool color){
   #ifdef TUNE
