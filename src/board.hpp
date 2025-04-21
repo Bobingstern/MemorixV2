@@ -392,8 +392,8 @@ class Board{
                 : (from == 59 && to == 61) ? QUEEN_CASTLE
                 : 0;
 
-      bool ep = (from - to == 9 || from - to == 7 || to - from == 9 || from - to == 7) && !capture && type == PAWN;
-      return movePack(from, to, (from-to == 16 || to-from == 16) && type == PAWN, capture, ep, promo, castle);
+      bool ep = (abs(to - from) == 9 || abs(from - to) == 7) && ((BB(to) & occ()) == 0) && !capture && type == PAWN;
+      return movePack(from, to, (from-to == 16 || to-from == 16) && type == PAWN, capture && !ep, ep, promo, castle);
     }
     char *moveToStr(uint16_t m){
       static char moveStr[6] = "";

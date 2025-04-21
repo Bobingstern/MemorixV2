@@ -1,4 +1,4 @@
-//#define DEV
+#define DEV
 #ifdef DEV
 //#define TUNE
 

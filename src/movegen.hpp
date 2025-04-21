@@ -172,6 +172,12 @@ uint64_t king_attack(int sq){
         | shift(shift(x, NORTH), WEST) | shift(shift(x, NORTH), EAST)
         | shift(shift(x, SOUTH), WEST) | shift(shift(x, SOUTH), EAST));
 }
+uint64_t king_attack_bb(uint64_t bb){
+    uint64_t x = bb;
+    return (shift(x, NORTH) | shift(x, SOUTH) | shift(x, EAST) | shift(x, WEST) 
+        | shift(shift(x, NORTH), WEST) | shift(shift(x, NORTH), EAST)
+        | shift(shift(x, SOUTH), WEST) | shift(shift(x, SOUTH), EAST));
+}
 
 // Pawn attacks
 

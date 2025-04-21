@@ -139,7 +139,12 @@ void get_eval_trace(){
 	get_array(EvalTrace.PSQT[3], index);
 	get_array(EvalTrace.PSQT[4], index);
 	get_array(EvalTrace.PSQT[5], index);
-	//get_array(EvalTrace.mobilities, index);
+
+	get_array(EvalTrace.mobilityBonus[0], index);
+	get_array(EvalTrace.mobilityBonus[1], index);
+	get_array(EvalTrace.mobilityBonus[2], index);
+	get_array(EvalTrace.mobilityBonus[3], index);
+
 	get_single(EvalTrace.bishopPair[0]-EvalTrace.bishopPair[1], index);
 }
 
@@ -343,18 +348,14 @@ double computeGradient(double gradient[][2]){
 
 //-----print stuff
 
-
-void printParameters(){
-	printf("pieceTypeValues = {");
-	for (int i=0;i<6;i++){
+void printArray(int s, int e){
+	printf("{");
+	for (int i=s;i<e;i++){
 		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
 	}
 	printf("};\n");
-	printf("kingLineDanger = {");
-	for (int i=6;i<34;i++){
-		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
-	}
-	printf("};\n");
+}
+void printPST(){
 	printf("PSQT = {\n{");
 	for (int i=34;i<34+64;i++){
 		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
@@ -385,14 +386,43 @@ void printParameters(){
 		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
 	}
 	printf("}\n};\n");
-
+}
+void printMobility(){
+	printf("mobilityBonus = {\n{");
+	for (int i=418;i<418+32;i++){
+		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
+	}
+	printf("},\n");
+	printf("{");
+	for (int i=418+32;i<418+32*2;i++){
+		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
+	}
+	printf("},\n");
+	printf("{");
+	for (int i=418+32*2;i<418+32*3;i++){
+		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
+	}
+	printf("},\n");
+	printf("{");
+	for (int i=418+32*3;i<418+32*4;i++){
+		printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
+	}
+	printf("}\n};\n");
+}
+void printParameters(){
+	printf("pieceTypeValues = ");
+	printArray(0, 6);
+	printf("kingLineDanger = ");
+	printArray(6, 34);
+	printPST();
+	printMobility();
 	// printf("mobilities = {");
 	// for (int i=34+64*6;i<34+64*6+5;i++){
 	// 	printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
 	// }
 	// printf("}\n");
 
-	printf("bishopPair = S(%d, %d)\n", (int)parameters[34+64*6][0], (int)parameters[34+64*6][1]);
+	printf("bishopPair = S(%d, %d)\n", (int)parameters[546][0], (int)parameters[546][1]);
 
 }
 void tune(){
@@ -424,12 +454,13 @@ void tune(){
 			parameters[i][1] -= rate * momentum[i][1] / (1e-8 + sqrt(velocity[i][1]));
 		}
 
-		if (epoch % 50 == 0){
+		if (epoch % 100 == 0){
 			printParameters();
 		}
-		error = linearEvaluationError();
-		//printf("\n");
-		printf("Epoch %d\n%f positions per second\nError %f\n", epoch, pps, error);
+		if (epoch % 50){
+			error = linearEvaluationError();
+			printf("Epoch %d\n%f positions per second\nError %.10f\n", epoch, pps, error);
+		}
 		
 	}
 }
@@ -474,21 +505,22 @@ void intialize_tuner(){
 		}
 	}
 
-	// Mobilities
-	// num = 5;
-	// coefficients.insert(coefficients.end(), num, 0); 
-	// parameters.insert(parameters.end(), num, rng);
-	// for (int i=6+28+64*6;i<6+28+64*6+num;i++){
-	// 	parameters[i][0] = MgScore(mobilities[i-(6+28+64*6)]);
-	// 	parameters[i][1] = EgScore(mobilities[i-(6+28+64*6)]);
-	// }
-
+	// Pawn Proc
+	num = 32 * 4;
+	coefficients.insert(coefficients.end(), num, 0); 
+	parameters.insert(parameters.end(), num, rng);
+	for (int j=0;j<4;j++){
+		for (int i=0;i<32;i++){
+			parameters[418+i+32*j][0] = MgScore(mobilityBonus[j][i]);
+			parameters[418+i+32*j][1] = EgScore(mobilityBonus[j][i]);
+		}
+	}
 	// bishop pair
 	num = 1;
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng); 
-	parameters[34+64*6][0] = 27;
-	parameters[34+64*6][1] = 100;
+	parameters[546][0] = 50;
+	parameters[546][1] = 66;
 
 	printParameters();
 }
