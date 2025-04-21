@@ -107,6 +107,9 @@ void perft(Board &b, int depth){
   #else
     Serial.print("Total ");
     Serial.println(total);
+    Serial.print("Took ");
+    Serial.print(TimeSince(rightNow));
+    Serial.println(" ms");
   #endif
   
 }
