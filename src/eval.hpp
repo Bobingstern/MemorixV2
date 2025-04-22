@@ -26,6 +26,7 @@ struct Trace {
   std::array<std::array<int, 2>, 28> kingLineDanger = {};
   std::array<std::array<std::array<int, 2>, 64>, 6> PSQT = {};
   std::array<std::array<std::array<int, 2>, 32>, 4> mobilityBonus = {};
+  std::array<std::array<int, 2>, 4> passers = {};
   // Singles
   std::array<int, 2> bishopPair;
 };
@@ -35,18 +36,18 @@ Trace EvalTrace = {};
 #endif
 
 #ifdef DEV
-  const int32_t pieceTypeValues[6] = {S(143, 212), S(640, 374), S(644, 394), S(960, 666), S(2089, 1230), S(0, 0), };
+  const int32_t pieceTypeValues[6] = {S(66, 201), S(334, 463), S(293, 506), S(530, 793), S(1096, 1428), S(0, 0), };
   
-  const int32_t kingLineDanger[28] = {S(0, 0), S(0, 0), S(94, -45), S(59, 21), S(30, 50), S(9, 40), S(3, 41), S(-11, 46), S(-26, 54), S(-53, 51), S(-44, 45), S(-79, 54), S(-87, 57), S(-128, 65), S(-142, 62), S(-174, 60), S(-164, 51), S(-170, 42), S(-145, 29), S(-143, 22), S(-156, 18), S(-195, 6), S(-178, -4), S(-234, -23), S(-253, -29), S(-205, -53), S(-130, -32), S(-135, -34), };
+  const int32_t kingLineDanger[28] = {S(0, 0), S(0, 0), S(26, 12), S(19, 49), S(9, 47), S(8, 30), S(6, 30), S(1, 33), S(-3, 34), S(-15, 33), S(-11, 30), S(-28, 37), S(-35, 34), S(-48, 35), S(-59, 35), S(-71, 35), S(-78, 29), S(-83, 26), S(-91, 21), S(-102, 14), S(-116, 12), S(-132, 1), S(-145, -7), S(-194, -25), S(-184, -38), S(-238, -50), S(-130, -32), S(-135, -34), };
 
-  const int32_t pawnProtection[6] = {S(25, 17), S(16, 19), S(-2, 8), S(-6, 28), S(-2, 10), S(-78, 42), };
-  
   const int32_t mobilityBonus[4][32] = {
-    {S(-14, -38), S(-8, -15), S(10, 8), S(25, 6), S(33, 15), S(45, 25), S(59, 19), S(68, 28), S(80, 17), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
-    {S(-15, -27), S(-25, 5), S(17, 27), S(32, 28), S(46, 44), S(59, 51), S(69, 53), S(77, 58), S(86, 61), S(99, 51), S(119, 51), S(137, 39), S(210, 42), S(69, 15), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
-    {S(66, -24), S(-69, 66), S(-24, 56), S(-10, 80), S(-4, 99), S(12, 95), S(7, 110), S(21, 114), S(34, 119), S(53, 120), S(79, 121), S(94, 119), S(94, 129), S(107, 126), S(120, 123), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
-    {S(-40, -35), S(-28, -13), S(-39, -61), S(8, -19), S(31, -52), S(39, -6), S(50, 0), S(52, 43), S(58, 60), S(55, 94), S(60, 110), S(63, 140), S(74, 135), S(78, 144), S(90, 152), S(86, 162), S(80, 177), S(94, 172), S(83, 184), S(77, 190), S(94, 196), S(79, 207), S(206, 116), S(189, 119), S(103, 142), S(163, 160), S(113, 153), S(128, 199), S(0, 0), S(0, 0), S(0, 0), S(0, 0), }
+    {S(-170, -14), S(-155, 22), S(-145, 39), S(-138, 44), S(-134, 49), S(-131, 55), S(-125, 50), S(-119, 54), S(-109, 37), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
+    {S(-124, -43), S(-130, -11), S(-110, 14), S(-105, 30), S(-101, 42), S(-99, 56), S(-96, 66), S(-94, 73), S(-93, 77), S(-86, 78), S(-74, 74), S(-40, 58), S(-29, 64), S(-45, 36), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
+    {S(-251, -8), S(-246, 34), S(-219, 36), S(-215, 72), S(-212, 93), S(-209, 110), S(-208, 117), S(-201, 124), S(-194, 132), S(-182, 135), S(-169, 135), S(-160, 134), S(-155, 139), S(-138, 126), S(-81, 105), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), S(0, 0), },
+    {S(-40, -35), S(-284, -138), S(-311, -185), S(-301, -134), S(-294, -37), S(-281, 23), S(-280, 63), S(-280, 83), S(-279, 110), S(-279, 134), S(-278, 151), S(-275, 162), S(-274, 174), S(-272, 182), S(-269, 189), S(-267, 191), S(-267, 196), S(-267, 195), S(-267, 195), S(-262, 194), S(-267, 202), S(-260, 203), S(-243, 181), S(-274, 212), S(-215, 153), S(-61, 70), S(4, 90), S(128, 199), S(0, 0), S(0, 0), S(0, 0), S(0, 0), }
   };
+
+  const int32_t passers[4] = {S(-61, -66), S(-33, -34), S(-11, 25), S(188, 10), };
 
 #else
   const int32_t pieceTypeValues[6] PROGMEM = {S(143, 212), S(640, 374), S(644, 394), S(960, 666), S(2089, 1230), S(0, 0), };
@@ -150,9 +151,35 @@ int32_t evalMobility(Board &board, uint64_t area, bool color){
       #endif
       pbb &= ~isol;
     }
-
   }
   return eval;
+}
+
+int32_t evalPawns(Board &board, bool color){
+  int32_t eval = 0;
+  uint64_t pbb = board.pieces(PAWN, color);
+  uint64_t blockers = board.pieces(PAWN, !color) | pawn_attacks(board.pieces(PAWN, !color), !color); // Other pawns and their attacks
+  while (pbb != 0){
+    uint64_t isol = rightBit(pbb);
+    int sq = ntz(isol);
+    if (relativeRank(color, rankOf(sq)) > 2){
+      uint64_t walkable = color == WHITE ? fileHBB << sq : fileABB >> (63 - sq);
+      if (!(walkable & blockers)){
+        printBitboard(isol);
+        printf("Passer %d\n", relativeRank(color, rankOf(sq))-3);
+        eval += passers[relativeRank(color, rankOf(sq))-3];
+        if (shift(isol, color == WHITE ? NORTH : SOUTH) & board.pieces(!color)){
+          //eval += blockedPasser[relativeRank(color, rankOf(sq))-3];
+        }
+
+        #ifdef TUNE
+        EvalTrace.passers[relativeRank(color, rankOf(sq))-3][color]++;
+        #endif
+      }
+    }
+    pbb &= ~isol;
+  }
+  return 0;
 }
 
 // int32_t pawnProtectionBonus(Board &board, bool color){
@@ -182,7 +209,7 @@ int evaluate(Board &board, bool color){
 
 
   // Bishop pair
-  int32_t bpair = S(58, 76);
+  int32_t bpair = S(11, 85);
   eval += (board.material[BISHOP].C_[WHITE] >= 2 ? bpair : 0);
   eval -= (board.material[BISHOP].C_[BLACK] >= 2 ? bpair : 0);
 
@@ -198,6 +225,8 @@ int evaluate(Board &board, bool color){
   eval -= evalMobility(board, mobilityArea[1], BLACK);
 
 
+  //eval += evalPawns(board, WHITE) - evalPawns(board, BLACK);
+  
 
   // Pawn Protection bonus
   //eval += pawnProtectionBonus(board, WHITE) - pawnProtectionBonus(board, BLACK);

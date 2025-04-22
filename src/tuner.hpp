@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int TOTAL_POSITIONS = 1400000;
+const int TOTAL_POSITIONS = 5000000;
 const int NPOSITIONS = 10000;
 using pair_t = std::array<double, 2>;
 std::vector<int> coefficients = {};
@@ -12,7 +12,7 @@ std::vector<pair_t> parameters = {};
 std::array<std::string, NPOSITIONS> fens = {};
 std::array<double, NPOSITIONS> wdls = {};
 //std::array<Trace, NPOSITIONS> posTraces = {};
-double K = 2.47;
+double K = 2.25;
 
 
 struct WdlMarker
@@ -145,7 +145,11 @@ void get_eval_trace(){
 	get_array(EvalTrace.mobilityBonus[2], index);
 	get_array(EvalTrace.mobilityBonus[3], index);
 
+	get_array(EvalTrace.passers, index);
+
 	get_single(EvalTrace.bishopPair[0]-EvalTrace.bishopPair[1], index);
+
+	
 }
 
 
@@ -163,11 +167,11 @@ double linearEvaluation(Trace trace){
 
 void load_data(){
 	Board board;
-	std::ifstream file("../data/quiet-labeled.epd");
+	std::ifstream file("../data/E1MResolved.book");
 	std::string line;
 	int i = 0;
 	if (file.is_open()){
-		while (std::getline(file, line)){
+		while (std::getline(file, line) && i < TOTAL_POSITIONS){
 			std::string Fen = cleanup_fen(line);
 			double wdl = get_fen_wdl(line);
 			const char *fen = Fen.c_str();
@@ -416,13 +420,9 @@ void printParameters(){
 	printArray(6, 34);
 	printPST();
 	printMobility();
-	// printf("mobilities = {");
-	// for (int i=34+64*6;i<34+64*6+5;i++){
-	// 	printf("S(%d, %d), ", (int)parameters[i][0], (int)parameters[i][1]);
-	// }
-	// printf("}\n");
-
-	printf("bishopPair = S(%d, %d)\n", (int)parameters[546][0], (int)parameters[546][1]);
+	printf("passers = ");
+	printArray(546, 550);
+	printf("bishopPair = S(%d, %d)\n", (int)parameters[550][0], (int)parameters[550][1]);
 
 }
 void tune(){
@@ -435,7 +435,7 @@ void tune(){
 	double momentum[total][2] = {0};
 	double velocity[total][2] = {0};
 	//printParameters();
-	for (int epoch=0;epoch<10000;epoch++){
+	for (int epoch=0;epoch<=10000;epoch++){
 		double gradient[total][2] = {0};
 		
 		//printf("Computing Gradients\n");
@@ -505,7 +505,7 @@ void intialize_tuner(){
 		}
 	}
 
-	// Pawn Proc
+	// Mobility Bonus
 	num = 32 * 4;
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng);
@@ -515,12 +515,21 @@ void intialize_tuner(){
 			parameters[418+i+32*j][1] = EgScore(mobilityBonus[j][i]);
 		}
 	}
+	// Passer Pawns Rank
+	num = 4;
+	coefficients.insert(coefficients.end(), num, 0); 
+	parameters.insert(parameters.end(), num, rng);
+	for (int i=546;i<546+num;i++){
+		parameters[i][0] = MgScore(passers[i-546]);
+		parameters[i][1] = EgScore(passers[i-546]);
+	}
 	// bishop pair
 	num = 1;
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng); 
-	parameters[546][0] = 50;
-	parameters[546][1] = 66;
+	parameters[550][0] = 50;
+	parameters[550][1] = 66;
+
 
 	printParameters();
 }
