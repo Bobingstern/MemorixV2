@@ -149,6 +149,8 @@ void get_eval_trace(){
 
 	get_single(EvalTrace.bishopPair[0]-EvalTrace.bishopPair[1], index);
 
+	get_array(EvalTrace.pawnPhalanx, index);
+	get_array(EvalTrace.kingAttacks, index);
 	
 }
 
@@ -423,6 +425,10 @@ void printParameters(){
 	printf("passers = ");
 	printArray(546, 550);
 	printf("bishopPair = S(%d, %d)\n", (int)parameters[550][0], (int)parameters[550][1]);
+	printf("pawnPhalanx = ");
+	printArray(551, 558);
+	printf("kingAttacks = ");
+	printArray(558, 562);
 
 }
 void tune(){
@@ -529,6 +535,22 @@ void intialize_tuner(){
 	parameters.insert(parameters.end(), num, rng); 
 	parameters[550][0] = 50;
 	parameters[550][1] = 66;
+
+	num = 7;
+	coefficients.insert(coefficients.end(), num, 0); 
+	parameters.insert(parameters.end(), num, rng);
+	for (int i=551;i<551+num;i++){
+		parameters[i][0] = MgScore(pawnPhalanx[i-551]);
+		parameters[i][1] = EgScore(pawnPhalanx[i-551]);
+	}
+
+	num = 4;
+	coefficients.insert(coefficients.end(), num, 0); 
+	parameters.insert(parameters.end(), num, rng);
+	for (int i=558;i<558+num;i++){
+		parameters[i][0] = MgScore(kingAttacks[i-558]);
+		parameters[i][1] = EgScore(kingAttacks[i-558]);
+	}
 
 
 	printParameters();
