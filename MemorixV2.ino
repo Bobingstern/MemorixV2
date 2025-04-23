@@ -23,14 +23,6 @@
 //   search(board, movetime);
 // }
 
-void printUint16(uint16_t b){
-  for (int i=15;i>=0;i--){
-    Serial.print((int)( (b >> i) & 0x01  ));
-  }
-  Serial.println("");
-}
-
-
 
 Board board = Board();
 void setup() {

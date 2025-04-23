@@ -41,9 +41,9 @@ int main() {
       case UCI        : printf("id name MemorixV2\nid author Anik Patel\nuciok\n");fflush(stdout);         break;
       case ISREADY    : printf("readyok\n");fflush(stdout);      break;
       case POSITION   : board.uciPosition(str);printBoard(board); break;
-      case EVAL  : printf("%d\n", evaluate(board, board.sideToMove)); break;
+      case EVAL       : printf("%d\n", evaluate(board, board.sideToMove)); break;
       case UCINEWGAME : board = Board();      break;
-      case PERFT       : runPerft(board, str);         break;
+      case PERFT      : runPerft(board, str);         break;
       case QUIT       : return 0;
     }
   }

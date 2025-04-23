@@ -5,7 +5,7 @@
 #include "search.hpp"
 
 
-#define INPUT_SIZE 8192
+#define INPUT_SIZE 16384
 
 enum InputCommands {
     // UCI

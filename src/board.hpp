@@ -182,7 +182,17 @@ bool BeginsWith(const char *str, const char *token) {
   return strstr(str, token) == str;
 }
 
+// Hash stuff
+// https://github.com/official-stockfish/Stockfish/blob/master/src/types.h#L360
+// piece * 64 + square
+constexpr uint64_t makeKey(uint64_t seed){
+  return seed * 6364136223846793005ULL + 1442695040888963407ULL;
+}
+// ----
+
+
 const int phaseValue[6] = {0, 1, 1, 2, 4, 0};
+const int MAX_KEYS = 16;
 
 class Board{
   public:
@@ -191,7 +201,9 @@ class Board{
     uint16_t *moveHistory = nullptr;
     uint8_t *castleHistory = nullptr;
     int8_t *captureHistory = nullptr;
-    int ply = 0; 
+    uint64_t *keys = nullptr;
+    int ply = 0;
+    int keyIndex = 0;
     bool sideToMove = WHITE;
     int PHASE_VALUE = 24;
 
@@ -227,6 +239,9 @@ class Board{
       this->material[ROOK].C_[WHITE] = 2; this->material[ROOK].C_[BLACK] = 2;
       this->material[QUEEN].C_[WHITE] = 1; this->material[QUEEN].C_[BLACK] = 1;
 
+      // Hash keys
+      this->keys = new uint64_t[MAX_KEYS]; // Lets use 16 for now...
+
       for (int sq=0;sq<64;sq++){
         bool col = sqColor(sq);
         #ifdef DEV
@@ -236,6 +251,14 @@ class Board{
         #endif
         
       }
+    }
+    // Generate initial hash
+    uint64_t initKey(){
+      uint64_t hash = 0;
+      for (int sq=0;sq<64;sq++){
+        hash ^= makeKey((sqType(sq) + sqColor(sq)*6) * 64 + sq); // If black then add 6 to piece type
+      }
+      return hash;
     }
     // Get pieces of specific type and/or color
     uint64_t pieces(int type, bool color){
@@ -360,16 +383,33 @@ class Board{
     void uciPosition(char *str){
       //Board();
       parseFen(BeginsWith(str, "position fen") ? str + 13 : START_FEN);
-
+      keyIndex = 0;
+      keys[0] = initKey();
       if ((str = strstr(str, "moves")) == NULL) return;
       char *move = strtok(str, " ");
+      uint16_t umove;
+
+      castleHistory[1] = castleHistory[0];
+      captureHistory[1] = -1;
+      moveHistory[1] = 0;
       while ((move = strtok(NULL, " "))) {
           // Parse and make move
           ply = 0;
           castleHistory[0] = castleHistory[1];
           moveHistory[0] = moveHistory[1];
           captureHistory[0] = captureHistory[1];
-          makeMove(parseMove(move));
+          umove = parseMove(move);
+          // If we got an irreversible then just clear the whole thing
+          if (getFlag(umove) == EP_CAPTURE || getFlag(umove) || sqType(getFrom(umove)) == PAWN){
+            while (keyIndex > 0){
+              keys[keyIndex] = 0;
+              keyIndex--;
+            }
+            keyIndex = -1; // This is so the makemove will set keyIndex to 0 and it doesnt waste an uncessary index
+          }
+          makeMove(umove);
+          //std::cout << "Index " << keyIndex << " " << keys[keyIndex] << "\n";
+          //printf("%d\n", keys[keyIndex]);
       }
     }
     
@@ -452,6 +492,7 @@ class Board{
     }
     void makeMove(uint16_t move){
       ply++;
+      keyIndex++;
       moveHistory[ply] = move;
       castleHistory[ply] = castleRights;
       captureHistory[ply] = -1;
@@ -553,7 +594,19 @@ class Board{
 
       if (flag < KNIGHT_PROMO)
         addPiece(to, type, color);
-      
+
+      if (keyIndex >= MAX_KEYS){
+        // Down shift
+        for (int i=1;i<MAX_KEYS;i++)
+          keys[i-1] = keys[i];
+        keys[MAX_KEYS-1] = 0;
+        keyIndex--;
+      }
+      if (flag != CAPTURE || flag != EP_CAPTURE)
+        keys[keyIndex] = keys[keyIndex-1] ^ makeKey((type+color*6)*64+from) ^ makeKey((type+color*6)*64+to);
+      else {
+        keys[keyIndex] = initKey();
+      }
       sideToMove = !sideToMove;
       //printf("From %d to %d flag %u color %d type %d\n", from, to, flag, color, type);
     }
@@ -608,7 +661,9 @@ class Board{
       captureHistory[ply] = -1;
       moveHistory[ply] = 0;
       castleHistory[ply] = 0;
+      keys[keyIndex] = 0;
       ply--;
+      keyIndex--;
       sideToMove = !sideToMove;
     }
 };

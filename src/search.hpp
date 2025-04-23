@@ -62,7 +62,13 @@ int32_t perft_(Board &b, int og, int depth){
 
   StagedMoveHandler stgm = StagedMoveHandler(&b, b.sideToMove);
   uint16_t move = stgm.nextMove();
+
+  //printf("%d\n", b.castleHistory[0]);
   while (move != 0){
+    if (depth == og){
+      //printBoard(b);
+      //printf("DEBUG %s\n", b.moveToStr(move));
+    }
     b.makeMove(move);
     if (stgm.inCheck()){
       b.unmakeMove();
@@ -71,9 +77,7 @@ int32_t perft_(Board &b, int og, int depth){
     }
     b.makeNullMove();
     b.unmakeNullMove();
-    if (depth == og){
-      //printBoard(b);
-    }
+    
     int32_t gend = perft_(b, og, depth-1);
     nodes += gend;
     if (depth == og){
@@ -114,6 +118,18 @@ void perft(Board &b, int depth){
   
 }
 
+bool checkRepetition(Board &board){
+  int8_t reps = 0;
+  for (int i=board.keyIndex-1;i>=0;i--){
+    if (board.keys[i] == board.keys[board.keyIndex])
+      reps++;
+    if (reps >= 2){
+      //printf("REPEAT\n");
+      return true;
+    }
+  }
+  return false;
+}
 
 int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &node){
 
@@ -121,6 +137,9 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
   int futility = -INFINITE;
   history->aborted = maxTime(history);
   
+  if (checkRepetition(board))
+    return 0;
+
   if (history->ply >= history->maxDepthQS || history->aborted){
     return score;
   }
@@ -177,6 +196,12 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
   pv->length = 0;
 
   history->aborted = maxTime(history);
+
+  // Check if this is a 3fold
+  if (!root){
+    if (checkRepetition(board))
+      return 0;
+  }
 
   if (history->ply >= history->maxDepthPVS || history->aborted){
     return qsearch(board, alpha, beta, history, node);
@@ -310,7 +335,6 @@ uint16_t search(Board &b, int32_t timeAllowed){
 
   //int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
   uint16_t bestMove = iterativeDeep(b, timeAllowed);
-  
   #ifdef DEV
     printf("bestmove ");
     printf(b.moveToStr(bestMove));
