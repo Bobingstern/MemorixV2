@@ -1,6 +1,6 @@
 #include "src/engine.hpp"
 
-#define MAX_MESSAGE 128
+#define MAX_MESSAGE 256
 
 // static int hashInput(char *str) {
 //   int hash = 0;

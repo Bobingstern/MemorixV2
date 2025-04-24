@@ -149,8 +149,8 @@ void get_eval_trace(){
 
 	get_single(EvalTrace.bishopPair[0]-EvalTrace.bishopPair[1], index);
 
-	get_array(EvalTrace.pawnPhalanx, index);
 	get_array(EvalTrace.kingAttacks, index);
+	get_array(EvalTrace.passersDefended, index);
 	
 }
 
@@ -425,10 +425,11 @@ void printParameters(){
 	printf("passers = ");
 	printArray(546, 550);
 	printf("bishopPair = S(%d, %d)\n", (int)parameters[550][0], (int)parameters[550][1]);
-	printf("pawnPhalanx = ");
-	printArray(551, 558);
 	printf("kingAttacks = ");
-	printArray(558, 562);
+	printArray(551, 555);
+	printf("passersDefended = ");
+	printArray(555, 559);
+
 
 }
 void tune(){
@@ -463,7 +464,7 @@ void tune(){
 		if (epoch % 100 == 0){
 			printParameters();
 		}
-		if (epoch % 50){
+		if (epoch % 25 == 0){
 			error = linearEvaluationError();
 			printf("Epoch %d\n%f positions per second\nError %.10f\n", epoch, pps, error);
 		}
@@ -487,8 +488,8 @@ void intialize_tuner(){
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng); 
 	for (int i=0;i<num;i++){
-		parameters[i][0] = MgScore(pieceTypeValues[i]);
-		parameters[i][1] = EgScore(pieceTypeValues[i]);
+		parameters[i][0] = (int)MgScore(pieceTypeValues[i]);
+		parameters[i][1] = (int)EgScore(pieceTypeValues[i]);
 	}
 
 	// kingLineDanger
@@ -496,8 +497,8 @@ void intialize_tuner(){
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng);
 	for (int i=6;i<6+num;i++){
-		parameters[i][0] = MgScore(kingLineDanger[i-6]);
-		parameters[i][1] = EgScore(kingLineDanger[i-6]);
+		parameters[i][0] = (int)MgScore(kingLineDanger[i-6]);
+		parameters[i][1] = (int)EgScore(kingLineDanger[i-6]);
 	}
 
 	// PSQT
@@ -506,8 +507,8 @@ void intialize_tuner(){
 	parameters.insert(parameters.end(), num, rng);
 	for (int j=0;j<6;j++){
 		for (int i=0;i<64;i++){
-			parameters[34+i+64*j][0] = MgScore(PSQT[j][i]);
-			parameters[34+i+64*j][1] = EgScore(PSQT[j][i]);
+			parameters[34+i+64*j][0] = (int)MgScore(PSQT[j][i]);
+			parameters[34+i+64*j][1] = (int)EgScore(PSQT[j][i]);
 		}
 	}
 
@@ -517,8 +518,8 @@ void intialize_tuner(){
 	parameters.insert(parameters.end(), num, rng);
 	for (int j=0;j<4;j++){
 		for (int i=0;i<32;i++){
-			parameters[418+i+32*j][0] = MgScore(mobilityBonus[j][i]);
-			parameters[418+i+32*j][1] = EgScore(mobilityBonus[j][i]);
+			parameters[418+i+32*j][0] = (int)MgScore(mobilityBonus[j][i]);
+			parameters[418+i+32*j][1] = (int)EgScore(mobilityBonus[j][i]);
 		}
 	}
 	// Passer Pawns Rank
@@ -526,8 +527,8 @@ void intialize_tuner(){
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng);
 	for (int i=546;i<546+num;i++){
-		parameters[i][0] = MgScore(passers[i-546]);
-		parameters[i][1] = EgScore(passers[i-546]);
+		parameters[i][0] = (int)MgScore(passers[i-546]);
+		parameters[i][1] = (int)EgScore(passers[i-546]);
 	}
 	// bishop pair
 	num = 1;
@@ -536,21 +537,23 @@ void intialize_tuner(){
 	parameters[550][0] = 50;
 	parameters[550][1] = 66;
 
-	num = 7;
-	coefficients.insert(coefficients.end(), num, 0); 
-	parameters.insert(parameters.end(), num, rng);
-	for (int i=551;i<551+num;i++){
-		parameters[i][0] = MgScore(pawnPhalanx[i-551]);
-		parameters[i][1] = EgScore(pawnPhalanx[i-551]);
-	}
-
+	//King attacks
 	num = 4;
 	coefficients.insert(coefficients.end(), num, 0); 
 	parameters.insert(parameters.end(), num, rng);
-	for (int i=558;i<558+num;i++){
-		parameters[i][0] = MgScore(kingAttacks[i-558]);
-		parameters[i][1] = EgScore(kingAttacks[i-558]);
+	for (int i=551;i<551+num;i++){
+		parameters[i][0] = (int)MgScore(kingAttacks[i-551]);
+		parameters[i][1] = (int)EgScore(kingAttacks[i-551]);
 	}
+	// Defended passers
+	num = 4;
+	coefficients.insert(coefficients.end(), num, 0); 
+	parameters.insert(parameters.end(), num, rng);
+	for (int i=555;i<555+num;i++){
+		parameters[i][0] = (int)MgScore(passersDefended[i-555]);
+		parameters[i][1] = (int)EgScore(passersDefended[i-555]);
+	}
+
 
 
 	printParameters();

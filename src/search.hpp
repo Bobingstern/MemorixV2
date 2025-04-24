@@ -14,7 +14,7 @@ struct PV {
 };
 
 struct History {
-  int eval[MAX_DEPTH+3] = {0};
+  int eval[MAX_DEPTH+3] = {0}; // For extensions if I add them
   int ply = 0;
   int maxDepthPVS = 1;
   int maxDepthQS = 4;
