@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int TOTAL_POSITIONS = 5000000;
+const int TOTAL_POSITIONS = 10000000;
 const int NPOSITIONS = 10000;
 using pair_t = std::array<double, 2>;
 std::vector<int> coefficients = {};
@@ -12,7 +12,7 @@ std::vector<pair_t> parameters = {};
 std::array<std::string, NPOSITIONS> fens = {};
 std::array<double, NPOSITIONS> wdls = {};
 //std::array<Trace, NPOSITIONS> posTraces = {};
-double K = 2.25;
+double K = 2.228;
 
 
 struct WdlMarker

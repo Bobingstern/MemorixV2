@@ -1,4 +1,5 @@
 #define DEV
+//#define SEARCHINFO
 #ifdef DEV
 //#define TUNE
 
@@ -26,13 +27,14 @@ int main() {
   Board board = Board();
 
   #ifdef TUNE
-  // 0.0855748379
-  // 0.0860449140
-  // 0.0854098400
+  // 0.0855748379 (5m)
+  // 0.0860449140 (5m)
+  // 0.0854098400 (5m)
+  // 0.0854858463 (10m)
   // position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
   intialize_tuner();
   load_data();
-  //computeOptimalK();
+  //computeOptimalK(); // 2.228
   tune();
   #endif  
   char str[INPUT_SIZE];

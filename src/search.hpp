@@ -10,14 +10,15 @@
 
 struct PV {
     int length = 0;
-    uint16_t line[MAX_DEPTH+3] = {};
+    uint16_t line[MAX_DEPTH+3] = {0};
 };
 
 struct History {
   int eval[MAX_DEPTH+3] = {0}; // For extensions if I add them
   int ply = 0;
   int maxDepthPVS = 1;
-  int maxDepthQS = 4;
+  int maxDepthQS = 8;
+  int qply = 0;
   uint16_t lastPV[MAX_DEPTH+3] = {0};
   #ifdef DEV
     clock_t TIME_STARTED;
@@ -140,7 +141,7 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
   if (checkRepetition(board))
     return 0;
 
-  if (history->ply >= history->maxDepthQS || history->aborted){
+  if (history->qply >= history->maxDepthQS || history->aborted){
     return score;
   }
   if (score >= beta)
@@ -155,9 +156,6 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
   stgm.setQuiet(); //Captures only
   uint16_t move = stgm.nextMove();
 
-  if (!stgm.inCheck()){
-    futility = score + 165;
-  }
   while (move != 0){
     board.makeMove(move);
     if (stgm.inCheck()){
@@ -167,8 +165,10 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
     }
     node++;
     history->ply++;
+    history->qply++;
     score = -qsearch(board, -beta, -alpha, history, node);
     history->ply--;
+    history->qply--;
     board.unmakeMove();
     if (score > bestScore){
       bestScore = score;
@@ -204,6 +204,7 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
   }
 
   if (history->ply >= history->maxDepthPVS || history->aborted){
+    history->qply = 0;
     return qsearch(board, alpha, beta, history, node);
   }
   
@@ -229,7 +230,10 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
   */
 
 move_loop:
-  uint16_t move = history->lastPV[history->ply];
+  
+  uint16_t move = 0;
+  if (root)
+    move = history->lastPV[0];
   if (move == 0)
     move = stgm.nextMove();
   
@@ -237,17 +241,28 @@ move_loop:
   
   while (move != 0){
     board.makeMove(move);
-    if (stgm.inCheck() || move == history->lastPV[history->ply]){
+    if (stgm.inCheck() || (moveCount > 0 && move == history->lastPV[0])){
       board.unmakeMove();
       move = stgm.nextMove();
       continue;
     }
+    #ifdef SEARCHINFO
+    if (root){
+      #ifdef DEV
+      printf("Searching move ");
+      printf(board.moveToStr(move));
+      printf("\n");
+      #else
+      Serial.print("Searching move ");
+      Serial.print(board.moveToStr(move));
+      Serial.print("\n");
+      #endif
+    }
+    #endif
+
     moveCount++;
     node++;
     history->ply++;
-    if (root){
-      //printf("%d\n", pv->length);
-    }
     if (!pvNode || moveCount > 1)
       score = -alphabeta(board, -alpha-1, -alpha, &pvFromHere, history, node);
     if (pvNode && (score > alpha || moveCount == 1))
@@ -296,7 +311,6 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
     hist.MAX_TIME = timeAllowed;
     hist.maxDepthPVS = depth;
     hist.aborted = false;
-    memset(hist.lastPV, 0, sizeof(hist.lastPV));
     
     int score = alphabeta(b, -INFINITE, INFINITE, &pv, &hist, nodes);
     if (best == 0)
@@ -305,7 +319,9 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
       break;
     }
     best = pv.line[0];
-    memcpy(hist.lastPV, pv.line, sizeof(pv.line));
+    for (int i=0;i<pv.length;i++)
+      hist.lastPV[i] = pv.line[i];
+    //memcpy(hist.lastPV, pv.line, sizeof(pv.line));
 
     #ifdef DEV
     printf("info pv ");
