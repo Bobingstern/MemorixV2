@@ -155,17 +155,21 @@ class StagedMoveHandler{
     uint8_t currentPiece;
     bool color;
     Board *board = nullptr;
+    bool onlyCaptures;
 
     StagedMoveHandler(Board *b, bool c){
       board = b;
       color = c;
       movementBB = 0ULL;
       currentPiece = 0;
+      onlyCaptures = false;
+      stage = stagePack(false, PAWN, PAWN, 0, getCastleStage(stage));
     }
     void reset(){
       stage = stagePack(true, PAWN, 0, 0, 0);
       movementBB = 0;
       currentPiece = 0;
+      onlyCaptures = false;
     }
     uint64_t getOpposing(){
       return board->pieces(QUEEN - getCaptureStage(stage), !color);
@@ -220,6 +224,7 @@ class StagedMoveHandler{
     
     void setQuiet(){
       stage = stagePack(false, PAWN, PAWN, 0, getCastleStage(stage));
+      onlyCaptures = true;
     }
     bool isSqAttacked(int sq){
       uint64_t result = 0ULL;
@@ -343,20 +348,22 @@ class StagedMoveHandler{
           return color == WHITE ? WHITE_OOO_MOVE : BLACK_OOO_MOVE;
         }
       }
-      while (m == 0 && getQuietStage(stage) == 1){
+      while (m == 0 && getQuietStage(stage) == 0){
+        m = nuxt(false);
+        if (getPieceStage(stage) > KING){
+          stage = stagePack(true, PAWN, 0, 0, getCastleStage(stage));
+          break;
+        }
+      }
+
+      while (m == 0 && !onlyCaptures){
         m = nuxt(true);
         if (getPieceStage(stage) > KING){
           stage = stagePack(false, PAWN, 0, 0, getCastleStage(stage));
           break;
         }
       }
-      // No quiet moves cuz 0
-      while (m == 0){
-        m = nuxt(false);
-        if (getPieceStage(stage) > KING){
-          break;
-        }
-      }
+      
       return m;
     }
     

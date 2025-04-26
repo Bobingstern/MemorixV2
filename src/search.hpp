@@ -6,8 +6,11 @@
 #include "staged.hpp"
 #include "eval.hpp"
 
-#define MAX_DEPTH 8
-
+#ifdef DEV
+  #define MAX_DEPTH 8
+#else
+ #define MAX_DEPTH 4
+#endif
 struct PV {
     int length = 0;
     uint16_t line[MAX_DEPTH+3] = {0};
@@ -17,7 +20,7 @@ struct History {
   int eval[MAX_DEPTH+3] = {0}; // For extensions if I add them
   int ply = 0;
   int maxDepthPVS = 1;
-  int maxDepthQS = 8;
+  int maxDepthQS = (int)MAX_DEPTH;
   int qply = 0;
   uint16_t lastPV[MAX_DEPTH+3] = {0};
   #ifdef DEV
@@ -192,6 +195,7 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
 
   bool pvNode = alpha != beta - 1;
   bool root = history->ply == 0;
+  int8_t depth = history->maxDepthPVS - history->ply;
   PV pvFromHere;
   pv->length = 0;
 
@@ -211,23 +215,16 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
   StagedMoveHandler stgm = StagedMoveHandler(&board, board.sideToMove);
   bool inCheck = stgm.inCheck();
   int eval;
-
+  bool improving;
   if (inCheck || pvNode){
     goto move_loop;
   }
-  // Pruning stuff ig
-  eval = evaluate(board, board.sideToMove);
-  history->eval[history->ply] = eval;
 
-  /*
-  bool improving = !inCheck && history->ply >= 2 && eval > history->eval[history->ply-2];
-  RFP
-  if (history->ply < 7 &&
-      eval - 175 * history->ply / (1+improving) >= beta &&
-      abs(beta) < 29001)
-      return eval;
-  ----
-  */
+  // RFP
+  eval = inCheck ? 0 : evaluate(board, board.sideToMove);
+  if (depth < 6 && !root && !inCheck && !pvNode && eval - 75 * depth >= beta)
+    return eval;
+  
 
 move_loop:
   
@@ -324,23 +321,24 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
     //memcpy(hist.lastPV, pv.line, sizeof(pv.line));
 
     #ifdef DEV
-    printf("info pv ");
+    printf("info depth %d score cp %d nodes %d ", depth, score, nodes);
+    printf("pv ");
     for (int i=0;i<pv.length;i++)
       printf("%s ", b.moveToStr(hist.lastPV[i]));
+    printf("\n");
     //printf("%s\n", b.moveToStr(best));
-    printf("\ninfo cp %d \ninfo nodes %d\n", score, nodes);
     fflush(stdout);
     #else
-    Serial.print("info pv ");
-    for (int i=0;i<pv.length;i++){
+    Serial.print("info depth ");
+    Serial.print(depth);
+    Serial.print(" score cp ");
+    Serial.print(score);
+    Serial.print(" nodes ");
+    Serial.print(nodes);
+    Serial.print(" pv ");
+    for (int i=0;i<pv.length;i++)
       Serial.print(b.moveToStr(hist.lastPV[i]));
-      Serial.print(" ");
-    }
-    //printf("%s\n", b.moveToStr(best));
-    Serial.print("\ninfo cp ");
-    Serial.println(score);
-    Serial.print("info nodes ");
-    Serial.println(nodes);
+    Serial.print("\n");
     #endif
     
   }

@@ -1,3 +1,4 @@
+#define SEARCHINFO
 #include "src/engine.hpp"
 
 #define MAX_MESSAGE 256
