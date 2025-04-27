@@ -249,8 +249,9 @@ int alphabeta(Board &board, int alpha, int beta, int depth, PV *pv, History *his
 move_loop:
   
   uint16_t move = 0;
-  if (root)
+  if (root){
     move = history->lastPV[0];
+  }
   if (move == 0)
     move = stgm.nextMove();
   
@@ -258,9 +259,11 @@ move_loop:
   
   while (move != 0){
     board.makeMove(move);
-    if (stgm.inCheck() || (moveCount > 0 && move == history->lastPV[0])){
+    bool isQuiet = getQuietStage(stgm.stage);
+    if (stgm.inCheck() || (moveCount > 0 && root && move == history->lastPV[0])){
       board.unmakeMove();
       move = stgm.nextMove();
+      
       continue;
     }
     #ifdef SEARCHINFO
@@ -268,11 +271,11 @@ move_loop:
       #ifdef DEV
       printf("Searching move ");
       printf(board.moveToStr(move));
-      printf("\n");
+      printf(" ");
       #else
       Serial.print("Searching move ");
       Serial.print(board.moveToStr(move));
-      Serial.print("\n");
+      Serial.print(" ");
       #endif
     }
     #endif
@@ -280,10 +283,29 @@ move_loop:
     moveCount++;
     node++;
     history->ply++;
+
+    bool doLMR = depth > 3 && moveCount > 2 && isQuiet;
+    // if (doLMR){
+    //   score = -alphabeta(board, -alpha-1, -alpha, depth-2, &pvFromHere, history, node);
+    //   if (score > alpha)
+    //     score = -alphabeta(board, -alpha-1, -alpha, depth-1, &pvFromHere, history, node);
+    // }
     if (!pvNode || moveCount > 1)
       score = -alphabeta(board, -alpha-1, -alpha, depth-1, &pvFromHere, history, node);
+
     if (pvNode && (score > alpha || moveCount == 1))
       score = -alphabeta(board, -beta, -alpha, depth-1, &pvFromHere, history, node);
+
+    #ifdef SEARCHINFO
+    if (root){
+      #ifdef DEV
+        printf("%d\n", score);
+      #else
+        Serial.println(score)
+      #endif
+    }
+    #endif
+
     history->ply--;
     board.unmakeMove();
 
@@ -312,7 +334,6 @@ move_loop:
   }
   return bestScore;
 }
-
 uint16_t iterativeDeep(Board &b, int32_t timeAllowed, int searchDepth){
   #ifdef DEV
     clock_t start = Now();
