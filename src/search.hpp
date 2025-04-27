@@ -8,8 +8,10 @@
 
 #ifdef DEV
   #define MAX_DEPTH 8
+  #define MAX_QS_DEPTH 8
 #else
  #define MAX_DEPTH 4
+  #define MAX_QS_DEPTH 4
 #endif
 struct PV {
     int length = 0;
@@ -19,8 +21,6 @@ struct PV {
 struct History {
   int eval[MAX_DEPTH+3] = {0}; // For extensions if I add them
   int ply = 0;
-  int maxDepthPVS = 1;
-  int maxDepthQS = (int)MAX_DEPTH;
   int qply = 0;
   uint16_t lastPV[MAX_DEPTH+3] = {0};
   #ifdef DEV
@@ -36,6 +36,7 @@ struct History {
 
 #ifdef DEV
   #define max(a, b) ((a) > (b) ? (a) : (b))
+  #define min(a, b) ((a) < (b) ? (a) : (b))
   clock_t Now() {
     return clock();
   }
@@ -135,16 +136,15 @@ bool checkRepetition(Board &board){
   return false;
 }
 
-int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &node){
+int qsearch(Board &board, int alpha, const int beta, int depth, History *history, int32_t &node){
 
   int score = evaluate(board, board.sideToMove);
-  int futility = -INFINITE;
   history->aborted = maxTime(history);
   
   if (checkRepetition(board))
     return 0;
 
-  if (history->qply >= history->maxDepthQS || history->aborted){
+  if (depth <= 0 || history->aborted){
     return score;
   }
   if (score >= beta)
@@ -166,10 +166,19 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
       move = stgm.nextMove();
       continue;
     }
+    // Futility Pruning
+    // if (score + 165 + EgScore(getValue(pieceTypeValues, board.captureHistory[board.ply])) <= alpha 
+    //     && getFlag(move) < KNIGHT_PROMO){
+    //   bestScore = max(bestScore, score + 165 + EgScore(getValue(pieceTypeValues, board.captureHistory[board.ply])));
+    //   board.unmakeMove();
+    //   move = stgm.nextMove();
+    //   continue;
+    // }
+
     node++;
     history->ply++;
     history->qply++;
-    score = -qsearch(board, -beta, -alpha, history, node);
+    score = -qsearch(board, -beta, -alpha, depth-1, history, node);
     history->ply--;
     history->qply--;
     board.unmakeMove();
@@ -187,7 +196,7 @@ int qsearch(Board &board, int alpha, const int beta, History *history, int32_t &
   return bestScore;
 }
 
-int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32_t &node){
+int alphabeta(Board &board, int alpha, int beta, int depth, PV *pv, History *history, int32_t &node){
  
 
   int bestScore = -INFINITE;
@@ -195,7 +204,6 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
 
   bool pvNode = alpha != beta - 1;
   bool root = history->ply == 0;
-  int8_t depth = history->maxDepthPVS - history->ply;
   PV pvFromHere;
   pv->length = 0;
 
@@ -207,23 +215,35 @@ int alphabeta(Board &board, int alpha, int beta, PV *pv, History *history, int32
       return 0;
   }
 
-  if (history->ply >= history->maxDepthPVS || history->aborted){
+  if (depth <= 0 || history->aborted){
     history->qply = 0;
-    return qsearch(board, alpha, beta, history, node);
+    return qsearch(board, alpha, beta, (int)MAX_QS_DEPTH, history, node);
   }
   
   StagedMoveHandler stgm = StagedMoveHandler(&board, board.sideToMove);
   bool inCheck = stgm.inCheck();
   int eval;
-  bool improving;
+  //board.moveHistory[board.ply] == 0
   if (inCheck || pvNode){
     goto move_loop;
   }
 
-  // RFP
-  eval = inCheck ? 0 : evaluate(board, board.sideToMove);
+  // Reverse Futility Pruning
+  eval = evaluate(board, board.sideToMove);
   if (depth < 6 && !root && !inCheck && !pvNode && eval - 75 * depth >= beta)
     return eval;
+
+  // Null Move Pruning 18.7 +/- 10.3
+  // eval >= beta Results 21.8 +/- 11.2
+  if ( depth >= 3 && eval >= beta){
+    board.makeNullMove();
+    PV nmpPV;
+    int nmpv = -alphabeta(board, -beta, -beta+1, depth-3, &nmpPV, history, node);
+    board.unmakeNullMove();
+    if (nmpv >= beta){
+      return nmpv;
+    }
+  }
   
 
 move_loop:
@@ -261,9 +281,9 @@ move_loop:
     node++;
     history->ply++;
     if (!pvNode || moveCount > 1)
-      score = -alphabeta(board, -alpha-1, -alpha, &pvFromHere, history, node);
+      score = -alphabeta(board, -alpha-1, -alpha, depth-1, &pvFromHere, history, node);
     if (pvNode && (score > alpha || moveCount == 1))
-      score = -alphabeta(board, -beta, -alpha, &pvFromHere, history, node);
+      score = -alphabeta(board, -beta, -alpha, depth-1, &pvFromHere, history, node);
     history->ply--;
     board.unmakeMove();
 
@@ -293,7 +313,7 @@ move_loop:
   return bestScore;
 }
 
-uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
+uint16_t iterativeDeep(Board &b, int32_t timeAllowed, int searchDepth){
   #ifdef DEV
     clock_t start = Now();
   #else
@@ -302,14 +322,13 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
   int32_t nodes = 0;
   uint16_t best = 0;
   History hist;
-  for (int depth=1;depth<MAX_DEPTH;depth++){
+  for (int depth=1;depth<=(searchDepth >= 1 ? searchDepth : MAX_DEPTH);depth++){
     PV pv;
     hist.TIME_STARTED = start;
-    hist.MAX_TIME = timeAllowed;
-    hist.maxDepthPVS = depth;
+    hist.MAX_TIME = (searchDepth >= 1 ? 32000 : timeAllowed);
     hist.aborted = false;
     
-    int score = alphabeta(b, -INFINITE, INFINITE, &pv, &hist, nodes);
+    int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
     if (best == 0)
         best = pv.line[0]; // Such low time we couldn't even finish a single search, just take a random move
     if (hist.aborted){
@@ -345,10 +364,10 @@ uint16_t iterativeDeep(Board &b, int32_t timeAllowed){
   return best;
 }
 
-uint16_t search(Board &b, int32_t timeAllowed){
+uint16_t search(Board &b, int32_t timeAllowed, int searchDepth){
 
   //int score = alphabeta(b, -INFINITE, INFINITE, depth, &pv, &hist, nodes);
-  uint16_t bestMove = iterativeDeep(b, timeAllowed);
+  uint16_t bestMove = iterativeDeep(b, timeAllowed, searchDepth);
   #ifdef DEV
     printf("bestmove ");
     printf(b.moveToStr(bestMove));

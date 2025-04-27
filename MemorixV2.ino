@@ -53,9 +53,9 @@ void loop() {
     if (inch == '\r') {
       // ----
       switch (hashInput(str)) {
-        case GO         : go(board, str);fflush(stdout);  break;
+        case GO         : go(board, str); break;
         case UCI        : Serial.print("id name MemorixV2 \nid author Anik Patel\nuciok\n");         break;
-        case ISREADY    : Serial.print("readyok\n");fflush(stdout);      break;
+        case ISREADY    : Serial.print("readyok\n");;     break;
         case POSITION   : board.uciPosition(str);printBoard(board); break;
         case EVAL       : Serial.println(evaluate(board, board.sideToMove)); break;
         case UCINEWGAME : board = Board();      break;

@@ -152,7 +152,7 @@ class StagedMoveHandler{
   public:
     uint16_t stage = stagePack(true, PAWN, 0, 0, 0);
     uint64_t movementBB;
-    uint8_t currentPiece;
+    uint64_t pieceCpy;
     bool color;
     Board *board = nullptr;
     bool onlyCaptures;
@@ -161,15 +161,15 @@ class StagedMoveHandler{
       board = b;
       color = c;
       movementBB = 0ULL;
-      currentPiece = 0;
       onlyCaptures = false;
       stage = stagePack(false, PAWN, PAWN, 0, getCastleStage(stage));
+      nextPiece();
     }
     void reset(){
       stage = stagePack(true, PAWN, 0, 0, 0);
       movementBB = 0;
-      currentPiece = 0;
       onlyCaptures = false;
+      nextPiece();
     }
     uint64_t getOpposing(){
       return board->pieces(QUEEN - getCaptureStage(stage), !color);
@@ -196,13 +196,6 @@ class StagedMoveHandler{
       movementBB = generateType(from, isQuiet, type);
     }
     
-    uint64_t getCurrentPiece(){
-      uint64_t x = board->pieces(getPieceStage(stage), color);
-      for (uint8_t i=0;i<currentPiece;i++){
-        x &= ~rightBit(x);
-      }
-      return rightBit(x);
-    }
     void nextPieceStage(){
       stage = stagePack(getQuietStage(stage), getPieceStage(stage) + 1, getCaptureStage(stage), getPromoStage(stage), getCastleStage(stage));
     }
@@ -252,29 +245,19 @@ class StagedMoveHandler{
           !(isSqAttacked(color == WHITE ? C1_ : C8_) || isSqAttacked(color == WHITE ? D1_ : D8_)) && (BB((int)(color == WHITE ? A1_ : A8_)) & board->pieces(ROOK, color)) != 0) &&
           !inCheck();
     }
-    uint64_t updatePieceUntilFill(){
-      // Basically we cycle over the piece stages until we get a non empty one
-      // THis is better than doing it recusrively cuz it saves RAM
-      uint64_t x = getCurrentPiece();
+    uint64_t cyclePieces(){
+      uint64_t x = rightBit(pieceCpy);
       while (x == 0){
-        // So this one is empty
-        // Let try the next piece 
-        // However, if we're on the 11th piece (max 10 of each piece is possible if all pawns promote to say a rook for example)
-        // Then we need to move on to the next piece type and reset currentPiece
-        if (currentPiece >= 11){
-          currentPiece = 0;
-          nextPieceStage();
-          // BUT! If this is the last piece type (king), there were done and there are no more valid moves
-          if (getPieceStage(stage) > KING){
-            return 0;
-          }
-        }
-        else {
-          currentPiece ++;
-        }
-        x = getCurrentPiece();
+        nextPieceStage();
+        nextPiece();
+        x = rightBit(pieceCpy);
+        if (getPieceStage(stage) > KING)
+          return 0;
       }
       return x;
+    }
+    void nextPiece(){
+      pieceCpy = board->pieces(getPieceStage(stage), color);
     }
     uint16_t getMove(int from, bool isQuiet){
       int to = ntz(rightBit(movementBB));
@@ -289,13 +272,14 @@ class StagedMoveHandler{
       }
       // Are we out of moves? Lets shift now
       if (movementBB == 0){
-        if (isQuiet)
-          currentPiece ++;
+        if (isQuiet){
+          pieceCpy &= ~rightBit(pieceCpy);
+        }
         else {
           nextCaptureStage();
           if (getCaptureStage(stage) >= KING){
             resetCaptureStage();
-            currentPiece ++;
+            pieceCpy &= ~rightBit(pieceCpy);
           }
         }
       }
@@ -303,7 +287,7 @@ class StagedMoveHandler{
     }
     uint16_t nuxt(bool isQuiet){
       // Who are we on?
-      uint64_t x = updatePieceUntilFill();
+      uint64_t x = cyclePieces();
       if (x == 0){
         // There are no more pieces to generate for
         return 0;
@@ -318,13 +302,14 @@ class StagedMoveHandler{
       // Ok, now we have a movement bb to generate with
       // Is it empty? That would mean no valid moves are available for that piece and we should move on to the next piece
       if (movementBB == 0){
-        if (isQuiet)
-          currentPiece ++;
+        if (isQuiet){
+          pieceCpy &= ~x;
+        }
         else {
           nextCaptureStage();
           if (getCaptureStage(stage) >= KING){
             resetCaptureStage();
-            currentPiece ++;
+            pieceCpy &= ~x;
           }
         }
         return 0;
@@ -352,6 +337,7 @@ class StagedMoveHandler{
         m = nuxt(false);
         if (getPieceStage(stage) > KING){
           stage = stagePack(true, PAWN, 0, 0, getCastleStage(stage));
+          nextPiece();
           break;
         }
       }
@@ -385,16 +371,7 @@ class StagedMoveHandler{
         
         if (getFlag(board->moveHistory[board->ply]) == DOUBLE_PAWN_PUSH && rankOf(me) == rankOf(to) && (abs(me - to) == 1) && getCaptureStage(stage) == PAWN){
             bb |= shift(BB(to), up) & ~board->occ();
-            // printBoard(*board);
-            // printBitboard(bb);
-            //Serial.print("En passant possible after ");
-            //Serial.println(board->moveToStr(board->moveHistory[board->ply]));
-            //enPassantTarget = shift(BB(getTo(board->moveHistory[board->ply])), up);
-            //Serial.println("Possible en passant");
         }
-        // else {
-        //     bb &= board->pieces(!color);
-        // }
         return bb;
       }
       return 0;

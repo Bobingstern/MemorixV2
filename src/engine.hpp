@@ -60,10 +60,16 @@ void runPerft(Board &board, char *str){
 
 void go(Board &board, char *str){
   int movetime = 0;
+  int depth = 0;
   setLimit(str, "movetime",  &movetime);
-  if (movetime == 0){
+  setLimit(str, "depth",  &depth);
+  if (movetime == 0 && depth == 0){
     setLimit(str, board.sideToMove == WHITE ? "wtime" : "btime", &movetime);
     movetime /= 20;
   }
-  search(board, movetime);
+  if (movetime == 0)
+    search(board, 0, min(depth, (int)MAX_DEPTH));
+  else
+    search(board, movetime, 0);
+  
 }
