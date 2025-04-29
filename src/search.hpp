@@ -301,7 +301,7 @@ move_loop:
       #ifdef DEV
         printf("%d\n", score);
       #else
-        Serial.println(score)
+        Serial.println(score);
       #endif
     }
     #endif
